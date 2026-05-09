@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CLASS DINING
 
-## Getting Started
+経営者・士業のための、接待・出張グルメメディア。
 
-First, run the development server:
+- 公開URL: 未デプロイ
+- 事業主体: 株式会社シェアコネクト
+
+## スタック
+
+- Next.js 16 (App Router) + React 19 + TypeScript
+- Tailwind CSS v4
+- Supabase (DB / Auth)
+- react-hook-form + zod
+- Vercel (デプロイ予定)
+
+## ローカル起動
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# → http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Supabaseの環境変数が未設定の場合、`src/lib/dummy-data.ts` のフォールバックで5店舗が表示されます。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## ディレクトリ
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+  app/
+    page.tsx                          # トップLP
+    restaurants/page.tsx              # 店舗一覧
+    restaurants/[slug]/page.tsx       # 店舗詳細
+    [prefectureSlug]/[genreSlug]/     # SEOページ (例: /tokyo/sushi)
+    features/                         # 特集 (Phase 2)
+    login/                            # 管理者ログイン
+    admin/                            # 管理画面 (CRUD)
+  components/
+    site-header.tsx, site-footer.tsx
+    restaurant-card.tsx, score-bar.tsx
+  lib/
+    types.ts                          # 型 + ジャンル/都道府県マスタ
+    data.ts                           # 取得ロジック (Supabase or dummy)
+    dummy-data.ts                     # フォールバック5店舗
+    supabase-browser.ts, supabase-server.ts
+    zod-schemas.ts                    # フォームバリデーション
+db/
+  schema.sql                          # Supabase に流す DDL
+  seed.sql                            # ダミーデータ
+proxy.ts                              # Auth セッションリフレッシュ (旧 middleware)
+```
 
-## Learn More
+## Supabase接続手順
 
-To learn more about Next.js, take a look at the following resources:
+`SUPABASE_SETUP.md` を参照。
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## デプロイ
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`DEPLOY.md` を参照。
 
-## Deploy on Vercel
+## ルート一覧
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| パス | 説明 |
+|---|---|
+| `/` | トップLP |
+| `/restaurants` | 店舗一覧 |
+| `/restaurants/[slug]` | 店舗詳細 |
+| `/[pref]/[genre]` | SEOページ (例: /tokyo/sushi) |
+| `/features` | 特集一覧 (準備中) |
+| `/features/[slug]` | 特集詳細 (準備中) |
+| `/login` | 管理者ログイン |
+| `/admin` | 管理ダッシュボード |
+| `/admin/restaurants` | 店舗一覧 (admin) |
+| `/admin/restaurants/new` | 店舗新規作成 |
+| `/admin/restaurants/[id]/edit` | 店舗編集 |
+| `/admin/genres` | ジャンル管理 |
+| `/admin/features` | 特集管理 (準備中) |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 評価軸
+
+接待向き / 静謐性 / 個室 / VIP対応 / 出張対応 / 会話のしやすさ / 客層 / 予算

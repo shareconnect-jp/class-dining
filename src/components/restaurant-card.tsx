@@ -44,13 +44,13 @@ export function RestaurantCard({ restaurant }: { restaurant: Restaurant }) {
         </div>
       </div>
 
-      <div className="p-6">
+      <div className="p-5 sm:p-6">
         <div className="flex items-center gap-3 text-[10px] tracking-[0.3em] text-[color:var(--color-gold)] mb-3">
           <span>{r.prefecture}</span>
           <span className="opacity-40">/</span>
           <span>{genreSlugToName(r.genre ?? "")}</span>
         </div>
-        <h3 className="font-serif text-xl mb-3 group-hover:text-[color:var(--color-gold)] transition-colors">
+        <h3 className="font-serif text-lg sm:text-xl mb-3 group-hover:text-[color:var(--color-gold)] transition-colors">
           {r.name}
         </h3>
         <p className="text-xs text-[color:var(--color-text-muted)] leading-relaxed line-clamp-2 mb-5">
@@ -61,11 +61,20 @@ export function RestaurantCard({ restaurant }: { restaurant: Restaurant }) {
           <ScoreBar label="静かさ" value={r.quietness_score} />
           <ScoreBar label="会話" value={r.conversation_score} />
         </div>
-        {priceLabel && (
-          <div className="pt-4 border-t border-[color:var(--color-border-soft)] text-xs text-[color:var(--color-text-muted)] tracking-wider">
-            {priceLabel}
-          </div>
-        )}
+        <div className="pt-4 border-t border-[color:var(--color-border-soft)] flex items-center justify-between gap-3">
+          {priceLabel ? (
+            <span className="text-xs text-[color:var(--color-text-muted)] tracking-wider">
+              {priceLabel}
+            </span>
+          ) : (
+            <span />
+          )}
+          {r.tabelog_url && (
+            <span className="text-[10px] tracking-[0.3em] text-[color:var(--color-gold)] border border-[color:var(--color-gold)]/40 px-2 py-1 whitespace-nowrap">
+              予約可
+            </span>
+          )}
+        </div>
       </div>
     </Link>
   );

@@ -39,8 +39,8 @@ export default async function RestaurantDetailPage(
     <>
       <SiteHeader />
       <main>
-        {/* HERO IMAGE */}
-        <div className="relative w-full aspect-[16/7] bg-[color:var(--color-bg-soft)] overflow-hidden">
+        {/* HERO IMAGE — モバイルは縦長め、PCはワイド */}
+        <div className="relative w-full aspect-[4/3] sm:aspect-[16/9] md:aspect-[16/7] bg-[color:var(--color-bg-soft)] overflow-hidden">
           {r.main_image_url && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -50,26 +50,28 @@ export default async function RestaurantDetailPage(
             />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-[color:var(--color-bg)] via-[color:var(--color-bg)]/40 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 max-w-7xl mx-auto px-6 lg:px-10 pb-12">
-            <div className="flex items-center gap-3 text-[10px] tracking-[0.4em] text-[color:var(--color-gold)] mb-4">
+          <div className="absolute inset-x-0 bottom-0 max-w-7xl mx-auto px-5 sm:px-6 lg:px-10 pb-6 sm:pb-10 md:pb-12">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[10px] tracking-[0.4em] text-[color:var(--color-gold)] mb-3 sm:mb-4">
               <span>{r.prefecture}</span>
               <span className="opacity-40">/</span>
               <span>{r.area}</span>
               <span className="opacity-40">/</span>
               <span>{genreSlugToName(r.genre ?? "")}</span>
             </div>
-            <h1 className="font-serif text-4xl md:text-6xl">{r.name}</h1>
+            <h1 className="font-serif text-3xl sm:text-4xl md:text-6xl leading-tight">
+              {r.name}
+            </h1>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-6 lg:px-10 py-20 grid grid-cols-1 lg:grid-cols-3 gap-16">
+        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-10 py-12 sm:py-16 md:py-20 grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-16">
           {/* 本文 */}
-          <div className="lg:col-span-2 space-y-12">
+          <div className="lg:col-span-2 space-y-10 sm:space-y-12 order-2 lg:order-1">
             <section>
               <p className="text-xs tracking-[0.3em] text-[color:var(--color-gold)] mb-4">
                 ABOUT
               </p>
-              <p className="text-base leading-loose text-[color:var(--color-text)]">
+              <p className="text-sm sm:text-base leading-loose text-[color:var(--color-text)]">
                 {r.description}
               </p>
             </section>
@@ -102,8 +104,20 @@ export default async function RestaurantDetailPage(
           </div>
 
           {/* サイドバー */}
-          <aside className="space-y-8">
-            <div className="luxury-card p-6">
+          <aside className="space-y-6 order-1 lg:order-2">
+            {/* 予約 CTA — 食べログURLがある時だけ */}
+            {r.tabelog_url && (
+              <a
+                href={r.tabelog_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-center px-6 py-5 bg-[color:var(--color-gold)] text-[color:var(--color-bg)] hover:bg-[color:var(--color-gold-soft)] transition-colors font-serif text-base sm:text-lg tracking-[0.2em] shadow-[0_8px_30px_rgba(200,169,107,0.15)]"
+              >
+                食べログで予約する →
+              </a>
+            )}
+
+            <div className="luxury-card p-5 sm:p-6">
               <h3 className="text-xs tracking-[0.3em] text-[color:var(--color-gold)] mb-6">
                 INFORMATION
               </h3>
@@ -113,7 +127,7 @@ export default async function RestaurantDetailPage(
                     <dt className="text-[color:var(--color-text-faded)] text-xs mb-1">
                       所在地
                     </dt>
-                    <dd>{r.address}</dd>
+                    <dd className="break-all">{r.address}</dd>
                   </div>
                 )}
                 {priceLabel && (
@@ -129,8 +143,7 @@ export default async function RestaurantDetailPage(
                     エリア / ジャンル
                   </dt>
                   <dd>
-                    {r.prefecture} {r.area} /{" "}
-                    {genreSlugToName(r.genre ?? "")}
+                    {r.prefecture} {r.area} / {genreSlugToName(r.genre ?? "")}
                   </dd>
                 </div>
               </dl>
@@ -147,7 +160,7 @@ export default async function RestaurantDetailPage(
               </div>
             </div>
 
-            <div className="px-6">
+            <div className="px-2">
               <Link
                 href={
                   prefSlug && r.genre ? `/${prefSlug}/${r.genre}` : "/restaurants"
@@ -159,6 +172,21 @@ export default async function RestaurantDetailPage(
             </div>
           </aside>
         </div>
+
+        {/* モバイル用フローティング予約 CTA */}
+        {r.tabelog_url && (
+          <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 p-4 bg-[color:var(--color-bg)]/95 backdrop-blur border-t border-[color:var(--color-border-soft)]">
+            <a
+              href={r.tabelog_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full text-center py-4 bg-[color:var(--color-gold)] text-[color:var(--color-bg)] font-serif text-sm tracking-[0.2em]"
+            >
+              食べログで予約する →
+            </a>
+          </div>
+        )}
+        {r.tabelog_url && <div className="lg:hidden h-20" aria-hidden />}
       </main>
       <SiteFooter />
     </>

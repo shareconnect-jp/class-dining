@@ -24,6 +24,8 @@ export function buildTabelogVisitUrl(r: Restaurant): string | null {
   const queryParts = [r.name, "食べログ", r.area].filter(Boolean);
   if (queryParts.length === 0) return url || null;
 
+  // I'm Feeling Lucky: 1番目の検索結果に直接リダイレクト
+  // (Tabelog の店舗ページがほぼ確実にトップなのでそのまま到達する)
   const q = encodeURIComponent(queryParts.join(" "));
-  return `https://www.google.com/search?q=${q}`;
+  return `https://www.google.com/search?q=${q}&btnI=I`;
 }

@@ -5,6 +5,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { ScoreBar } from "@/components/score-bar";
 import { fetchRestaurantBySlug } from "@/lib/data";
 import { genreSlugToName, prefectureNameToSlug } from "@/lib/types";
+import { buildTabelogVisitUrl } from "@/lib/tabelog";
 
 export async function generateMetadata(props: PageProps<"/restaurants/[slug]">) {
   const { slug } = await props.params;
@@ -34,6 +35,7 @@ export default async function RestaurantDetailPage(
       : null;
 
   const prefSlug = prefectureNameToSlug(r.prefecture ?? "");
+  const tabelogUrl = buildTabelogVisitUrl(r);
 
   return (
     <>
@@ -105,15 +107,15 @@ export default async function RestaurantDetailPage(
 
           {/* サイドバー */}
           <aside className="space-y-6 order-1 lg:order-2">
-            {/* 予約 CTA — 食べログURLがある時だけ */}
-            {r.tabelog_url && (
+            {/* CTA — 食べログ詳細へ */}
+            {tabelogUrl && (
               <a
-                href={r.tabelog_url}
+                href={tabelogUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block text-center px-6 py-5 bg-[color:var(--color-gold)] text-[color:var(--color-bg)] hover:bg-[color:var(--color-gold-soft)] transition-colors font-serif text-base sm:text-lg tracking-[0.2em] shadow-[0_8px_30px_rgba(200,169,107,0.15)]"
               >
-                食べログで予約する →
+                食べログで詳細を見る →
               </a>
             )}
 
@@ -148,8 +150,8 @@ export default async function RestaurantDetailPage(
                 </div>
               </dl>
               <div className="mt-6 space-y-2 pt-6 border-t border-[color:var(--color-border-soft)]">
-                {r.tabelog_url && (
-                  <ExternalLink href={r.tabelog_url} label="食べログで見る" />
+                {tabelogUrl && (
+                  <ExternalLink href={tabelogUrl} label="食べログで見る" />
                 )}
                 {r.official_url && (
                   <ExternalLink href={r.official_url} label="公式サイト" />
@@ -173,20 +175,20 @@ export default async function RestaurantDetailPage(
           </aside>
         </div>
 
-        {/* モバイル用フローティング予約 CTA */}
-        {r.tabelog_url && (
+        {/* モバイル用フローティング CTA */}
+        {tabelogUrl && (
           <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 p-4 bg-[color:var(--color-bg)]/95 backdrop-blur border-t border-[color:var(--color-border-soft)]">
             <a
-              href={r.tabelog_url}
+              href={tabelogUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="block w-full text-center py-4 bg-[color:var(--color-gold)] text-[color:var(--color-bg)] font-serif text-sm tracking-[0.2em]"
             >
-              食べログで予約する →
+              食べログで詳細を見る →
             </a>
           </div>
         )}
-        {r.tabelog_url && <div className="lg:hidden h-20" aria-hidden />}
+        {tabelogUrl && <div className="lg:hidden h-20" aria-hidden />}
       </main>
       <SiteFooter />
     </>

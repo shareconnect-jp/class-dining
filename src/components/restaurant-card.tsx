@@ -71,7 +71,7 @@ export function RestaurantCard({ restaurant }: { restaurant: Restaurant }) {
           )}
           {r.tabelog_url && (
             <span className="text-[10px] tracking-[0.3em] text-[color:var(--color-gold)] border border-[color:var(--color-gold)]/40 px-2 py-1 whitespace-nowrap">
-              予約可
+              食べログ
             </span>
           )}
         </div>

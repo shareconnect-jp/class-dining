@@ -115,7 +115,7 @@ export default async function RestaurantDetailPage(
                 rel="noopener noreferrer"
                 className="block text-center px-6 py-5 bg-[color:var(--color-gold)] text-[color:var(--color-bg)] hover:bg-[color:var(--color-gold-soft)] transition-colors font-serif text-base sm:text-lg tracking-[0.2em] shadow-[0_8px_30px_rgba(200,169,107,0.15)]"
               >
-                食べログで詳細を見る →
+                店舗情報を見る →
               </a>
             )}
 
@@ -151,7 +151,7 @@ export default async function RestaurantDetailPage(
               </dl>
               <div className="mt-6 space-y-2 pt-6 border-t border-[color:var(--color-border-soft)]">
                 {tabelogUrl && (
-                  <ExternalLink href={tabelogUrl} label="食べログで見る" />
+                  <ExternalLink href={tabelogUrl} label="Web で店舗情報を探す" />
                 )}
                 {r.official_url && (
                   <ExternalLink href={r.official_url} label="公式サイト" />
@@ -184,7 +184,7 @@ export default async function RestaurantDetailPage(
               rel="noopener noreferrer"
               className="block w-full text-center py-4 bg-[color:var(--color-gold)] text-[color:var(--color-bg)] font-serif text-sm tracking-[0.2em]"
             >
-              食べログで詳細を見る →
+              店舗情報を見る →
             </a>
           </div>
         )}

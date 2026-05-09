@@ -1,14 +1,13 @@
 import type { Restaurant } from "./types";
 
 /**
- * 店舗情報ページへの導線URLを構築する。
+ * 店舗詳細(食べログ)へのリンクURLを構築する。
  *
- * - tabelog_url が個別店舗ページらしい (検索系URLではない specific URL) → そのまま使う
- * - 含む or 未設定 → 「店名 食べログ エリア」の Google 検索URLにフォールバック
- *   - Google検索結果のトップに該当店舗の食べログページがほぼ確実に表示される
- *   - 食べログ自身の検索URL (`/rstLst/?sw=`) は内部リダイレクトで挙動が不安定なため使わない
+ * - 個別店舗ページの URL が DB に保存済み → そのURLを直接返す
+ * - そうでない (一覧URL or Google URL or 未設定) → 内部ルート `/go/r/[slug]` を返す
  *
- * 関数名は歴史的経緯で残しているが、実態は「店舗情報サーチURL」のフォールバック付きビルダー。
+ * 内部ルートでは server-side で Google を経由して実URLを取得 → DBキャッシュ → リダイレクトする。
+ * 2回目以降のクリックは DB に保存済みの実URLが返るため即座に飛ぶ。
  */
 export function buildTabelogVisitUrl(r: Restaurant): string | null {
   const url = r.tabelog_url?.trim();
@@ -16,16 +15,11 @@ export function buildTabelogVisitUrl(r: Restaurant): string | null {
     url &&
     !url.includes("/rstLst/") &&
     !url.includes("/rstsearch") &&
-    !url.includes("google.com/search")
+    !url.includes("google.com")
   ) {
     return url;
   }
 
-  const queryParts = [r.name, "食べログ", r.area].filter(Boolean);
-  if (queryParts.length === 0) return url || null;
-
-  // I'm Feeling Lucky: 1番目の検索結果に直接リダイレクト
-  // (Tabelog の店舗ページがほぼ確実にトップなのでそのまま到達する)
-  const q = encodeURIComponent(queryParts.join(" "));
-  return `https://www.google.com/search?q=${q}&btnI=I`;
+  if (!r.slug) return url || null;
+  return `/go/r/${r.slug}`;
 }

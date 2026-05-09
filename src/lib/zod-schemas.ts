@@ -29,3 +29,18 @@ export const restaurantFormSchema = z.object({
 });
 
 export type RestaurantFormValues = z.infer<typeof restaurantFormSchema>;
+
+export const featureFormSchema = z.object({
+  title: z.string().min(1, "タイトルは必須です"),
+  slug: z
+    .string()
+    .min(1, "slugは必須です")
+    .regex(/^[a-z0-9-]+$/, "英小文字・数字・ハイフンのみ"),
+  subtitle: z.string().optional().or(z.literal("")),
+  hero_image_url: z.string().url().optional().or(z.literal("")),
+  body_md: z.string().optional().or(z.literal("")),
+  restaurant_ids: z.array(z.string().uuid()).default([]),
+  is_published: z.boolean().default(false),
+});
+
+export type FeatureFormValues = z.infer<typeof featureFormSchema>;

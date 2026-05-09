@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from "./supabase-server";
 import { DUMMY_RESTAURANTS } from "./dummy-data";
-import type { Restaurant } from "./types";
+import type { Feature, Restaurant } from "./types";
 
 function isSupabaseConfigured(): boolean {
   return Boolean(
@@ -76,4 +76,77 @@ export async function fetchAllRestaurants(): Promise<Restaurant[]> {
     return [];
   }
   return (data ?? []) as Restaurant[];
+}
+
+// ============================================================
+// Features
+// ============================================================
+export async function fetchPublishedFeatures(): Promise<Feature[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("features")
+    .select("*")
+    .eq("is_published", true)
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[fetchPublishedFeatures]", error);
+    return [];
+  }
+  return (data ?? []) as Feature[];
+}
+
+export async function fetchFeatureBySlug(
+  slug: string,
+): Promise<{ feature: Feature; restaurants: Restaurant[] } | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  const supabase = await createSupabaseServerClient();
+  const { data: feature, error: fErr } = await supabase
+    .from("features")
+    .select("*")
+    .eq("slug", slug)
+    .eq("is_published", true)
+    .maybeSingle();
+
+  if (fErr || !feature) {
+    if (fErr) console.error("[fetchFeatureBySlug]", fErr);
+    return null;
+  }
+
+  const ids = (feature as Feature).restaurant_ids ?? [];
+  let restaurants: Restaurant[] = [];
+  if (ids.length > 0) {
+    const { data: rs, error: rErr } = await supabase
+      .from("restaurants")
+      .select("*")
+      .in("id", ids);
+    if (rErr) console.error("[fetchFeatureBySlug] restaurants", rErr);
+    // 元の restaurant_ids の順序を保つ
+    const map = new Map((rs ?? []).map((r) => [r.id, r as Restaurant]));
+    restaurants = ids
+      .map((id) => map.get(id))
+      .filter((r): r is Restaurant => Boolean(r));
+  }
+
+  return { feature: feature as Feature, restaurants };
+}
+
+export async function fetchAllFeatures(): Promise<Feature[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("features")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[fetchAllFeatures]", error);
+    return [];
+  }
+  return (data ?? []) as Feature[];
 }

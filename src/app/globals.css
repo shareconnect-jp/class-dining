@@ -100,3 +100,90 @@ body {
   background: rgba(200, 169, 107, 0.3);
   color: #f6f1e8;
 }
+
+/* prose for /features/[slug] markdown body */
+.prose-feature {
+  color: var(--color-text);
+  font-size: 16px;
+  line-height: 1.95;
+}
+.prose-feature h1 {
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  font-weight: 900;
+  margin-top: 3rem;
+  margin-bottom: 1.25rem;
+  letter-spacing: 0.01em;
+}
+.prose-feature h2 {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 900;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+.prose-feature h3 {
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  color: var(--color-gold);
+}
+.prose-feature p {
+  margin-bottom: 1.4rem;
+}
+.prose-feature a {
+  color: var(--color-gold);
+  text-decoration: underline;
+  text-decoration-color: rgba(200, 169, 107, 0.3);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.2s;
+}
+.prose-feature a:hover {
+  text-decoration-color: var(--color-gold);
+}
+.prose-feature strong {
+  color: var(--color-text);
+  font-weight: 700;
+}
+.prose-feature ul,
+.prose-feature ol {
+  margin: 1.2rem 0 1.4rem 1.5rem;
+}
+.prose-feature li {
+  margin-bottom: 0.5rem;
+}
+.prose-feature blockquote {
+  border-left: 2px solid var(--color-gold);
+  padding-left: 1.25rem;
+  margin: 1.5rem 0;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+.prose-feature code {
+  background: var(--color-bg-elevated);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.9em;
+  color: var(--color-gold);
+}
+.prose-feature hr {
+  border: none;
+  border-top: 1px solid var(--color-border-soft);
+  margin: 2.5rem 0;
+}
+.prose-feature img {
+  border-radius: 8px;
+  margin: 1.5rem 0;
+}
+.prose-feature ol li {
+  list-style-type: decimal;
+  list-style-position: outside;
+}
+.prose-feature ul li {
+  list-style-type: disc;
+  list-style-position: outside;
+}

@@ -44,9 +44,10 @@ export default async function AdminLayout({
         </Link>
         <nav className="mt-4 flex gap-1 overflow-x-auto -mx-5 px-5 pb-1">
           <NavLink href="/admin" mobile>ホーム</NavLink>
+          <NavLink href="/admin/quick-add" mobile primary>+ 取材投稿</NavLink>
           <NavLink href="/admin/restaurants" mobile>店舗</NavLink>
-          <NavLink href="/admin/genres" mobile>ジャンル</NavLink>
           <NavLink href="/admin/features" mobile>特集</NavLink>
+          <NavLink href="/admin/genres" mobile>ジャンル</NavLink>
         </nav>
       </div>
 
@@ -65,9 +66,10 @@ export default async function AdminLayout({
         </Link>
         <nav className="space-y-2 text-sm flex-1">
           <NavLink href="/admin">ダッシュボード</NavLink>
+          <NavLink href="/admin/quick-add" primary>+ 取材投稿</NavLink>
           <NavLink href="/admin/restaurants">店舗</NavLink>
-          <NavLink href="/admin/genres">ジャンル</NavLink>
           <NavLink href="/admin/features">特集</NavLink>
+          <NavLink href="/admin/genres">ジャンル</NavLink>
         </nav>
         <div className="pt-6 border-t border-[color:var(--color-border-soft)] space-y-2">
           {user?.email && (
@@ -107,26 +109,28 @@ function NavLink({
   href,
   children,
   mobile,
+  primary,
 }: {
   href: string;
   children: React.ReactNode;
   mobile?: boolean;
+  primary?: boolean;
 }) {
   if (mobile) {
+    const cls = primary
+      ? "px-3 py-2 text-xs tracking-wider whitespace-nowrap text-[color:var(--color-bg)] bg-[color:var(--color-gold)] font-bold border border-[color:var(--color-gold)]"
+      : "px-3 py-2 text-xs tracking-wider whitespace-nowrap text-[color:var(--color-text-muted)] hover:text-[color:var(--color-gold)] border border-[color:var(--color-border-soft)] hover:border-[color:var(--color-gold)] transition-colors";
     return (
-      <Link
-        href={href}
-        className="px-3 py-2 text-xs tracking-wider whitespace-nowrap text-[color:var(--color-text-muted)] hover:text-[color:var(--color-gold)] border border-[color:var(--color-border-soft)] hover:border-[color:var(--color-gold)] transition-colors"
-      >
+      <Link href={href} className={cls}>
         {children}
       </Link>
     );
   }
+  const cls = primary
+    ? "block px-3 py-2 text-[color:var(--color-gold)] font-bold border border-[color:var(--color-gold)]/40 hover:bg-[color:var(--color-gold)] hover:text-[color:var(--color-bg)] transition-colors"
+    : "block px-3 py-2 text-[color:var(--color-text-muted)] hover:text-[color:var(--color-gold)] hover:bg-[color:var(--color-bg-soft)] transition-colors";
   return (
-    <Link
-      href={href}
-      className="block px-3 py-2 text-[color:var(--color-text-muted)] hover:text-[color:var(--color-gold)] hover:bg-[color:var(--color-bg-soft)] transition-colors"
-    >
+    <Link href={href} className={cls}>
       {children}
     </Link>
   );

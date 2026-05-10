@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans_JP, Noto_Serif_JP } from "next/font/google";
 import "./globals.css";
+import { VersionChecker } from "@/components/version-checker";
 
 const notoSans = Noto_Sans_JP({
   subsets: ["latin"],
@@ -39,7 +40,19 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja" className={`${notoSans.variable} ${notoSerif.variable}`}>
-      <body>{children}</body>
+      <head>
+        {/* HTML 自体のキャッシュを最小化 (HTTPヘッダと併用、ブラウザによっては効く) */}
+        <meta
+          httpEquiv="Cache-Control"
+          content="no-cache, no-store, must-revalidate"
+        />
+        <meta httpEquiv="Pragma" content="no-cache" />
+        <meta httpEquiv="Expires" content="0" />
+      </head>
+      <body>
+        {children}
+        <VersionChecker />
+      </body>
     </html>
   );
 }

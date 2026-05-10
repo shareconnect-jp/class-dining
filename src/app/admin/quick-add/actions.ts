@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { scrapeTabelog } from "@/lib/tabelog-scrape";
+import { lookupGooglePlace } from "@/lib/google-places";
 import {
   generateDescription,
   inferScores,
@@ -19,6 +20,10 @@ function isSupabaseConfigured(): boolean {
 
 export async function fetchTabelogInfoAction(url: string) {
   return scrapeTabelog(url);
+}
+
+export async function lookupGooglePlaceAction(query: string) {
+  return lookupGooglePlace(query);
 }
 
 export type AutoFillResult = {

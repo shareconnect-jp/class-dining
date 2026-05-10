@@ -9,6 +9,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import {
   autoFillAction,
   fetchTabelogInfoAction,
+  lookupGooglePlaceAction,
   saveQuickRestaurant,
 } from "./actions";
 
@@ -165,6 +166,54 @@ export function QuickAddForm() {
       return res;
     } finally {
       setScraping(false);
+    }
+  }
+
+  /**
+   * Google Places で店名+エリア検索 → 住所/電話/評価/営業時間/写真を補完。
+   * Tabelog と重複する項目は Google を優先 (より正確で構造化された応答のため)。
+   */
+  async function handleFetchGoogle(searchQuery: string) {
+    if (!searchQuery.trim()) return null;
+    try {
+      const res = await lookupGooglePlaceAction(searchQuery);
+      if (!res.ok) return null;
+
+      // 公式URL / Google Maps URL
+      if (res.websiteUri && !officialUrl) setOfficialUrl(res.websiteUri);
+      if (res.googleMapsUri && !googleMapUrl) setGoogleMapUrl(res.googleMapsUri);
+
+      // 拡張情報: Google を優先
+      setExtras((prev) => ({
+        ...prev,
+        phone: res.phone ?? prev.phone,
+        opening_hours:
+          res.openingHours?.join("\n") ?? prev.opening_hours,
+        rating: res.rating ?? prev.rating,
+        rating_count: res.ratingCount ?? prev.rating_count,
+      }));
+
+      // 住所: Google の方がフォーマット整っているので上書き
+      if (res.address && !address) setAddress(res.address);
+
+      // Google 写真をギャラリーに追加
+      if (res.photos && res.photos.length > 0) {
+        const newPhotos: UploadedMedia[] = res.photos
+          .filter((u) => !media.some((m) => m.url === u))
+          .map((u) => ({
+            url: u,
+            kind: "image" as const,
+            localId: `google-${u}`,
+            fromTabelog: false,
+          }));
+        if (newPhotos.length > 0) {
+          setMedia((prev) => [...prev, ...newPhotos]);
+        }
+      }
+
+      return res;
+    } catch {
+      return null;
     }
   }
 
@@ -329,12 +378,22 @@ export function QuickAddForm() {
 
   const canSave = !pending && allUploaded && name && slug && prefecture && genre;
 
-  // step 2 自動 AI 生成 (step 1→2 の遷移時に scraper も走らせ、結果を直接 AI に渡す)
+  // step 2 自動 AI 生成 (step 1→2 の遷移時に scraper + Google を並列で叩く)
   async function advanceFromStep1() {
     let scraped: Awaited<ReturnType<typeof handleFetchTabelog>> = null;
     if (tabelogUrl.trim() && !name) {
       scraped = await handleFetchTabelog();
     }
+
+    // 並行で Google Places 検索 (店名 + エリア)
+    const searchName = scraped?.name ?? name;
+    const searchArea = scraped?.area ?? area;
+    if (searchName) {
+      const q = [searchName, searchArea].filter(Boolean).join(" ");
+      // 非同期で実行、AI生成と並列
+      void handleFetchGoogle(q);
+    }
+
     setStep(2);
     if (!description) {
       // race condition fix: closure 経由ではなく scraped から直接渡す

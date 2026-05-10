@@ -14,6 +14,7 @@ export type Restaurant = {
   google_map_url: string | null;
   main_image_url: string | null;
   gallery_image_urls: string[];
+  gallery_video_urls: string[];
   private_room: boolean;
   vip_available: boolean;
   business_trip_friendly: boolean;
@@ -25,6 +26,21 @@ export type Restaurant = {
   is_published: boolean;
   created_at: string;
   updated_at: string;
+  editorial_note: string | null;
+  // enrich-v1 拡張カラム
+  phone: string | null;
+  opening_hours: string | null;
+  closed_days: string | null;
+  seats: string | null;
+  smoking: string | null;
+  cards_accepted: string | null;
+  parking: string | null;
+  access_text: string | null;
+  dinner_budget: string | null;
+  lunch_budget: string | null;
+  rating: number | null;
+  rating_count: number | null;
+  instagram_url: string | null;
 };
 
 export type Genre = {

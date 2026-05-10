@@ -36,6 +36,9 @@ export default async function RestaurantDetailPage(
 
   const prefSlug = prefectureNameToSlug(r.prefecture ?? "");
   const tabelogUrl = buildTabelogVisitUrl(r);
+  const galleryImages = (r.gallery_image_urls ?? []).filter(
+    (u) => u && u !== r.main_image_url,
+  );
 
   return (
     <>
@@ -103,6 +106,85 @@ export default async function RestaurantDetailPage(
                 ))}
               </div>
             </section>
+
+            {/* DETAIL — Tabelog 拡張取得情報 */}
+            {(r.phone || r.opening_hours || r.closed_days || r.seats || r.access_text) && (
+              <section>
+                <p className="text-xs tracking-[0.3em] text-[color:var(--color-gold)] mb-6">
+                  DETAIL
+                </p>
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 text-sm">
+                  {r.phone && (
+                    <DetailRow label="電話">
+                      <a
+                        href={`tel:${r.phone.replace(/[^\d+]/g, "")}`}
+                        className="text-[color:var(--color-gold)] hover:underline"
+                      >
+                        {r.phone}
+                      </a>
+                    </DetailRow>
+                  )}
+                  {r.opening_hours && (
+                    <DetailRow label="営業時間">
+                      <span className="whitespace-pre-line">{r.opening_hours}</span>
+                    </DetailRow>
+                  )}
+                  {r.closed_days && (
+                    <DetailRow label="定休日">{r.closed_days}</DetailRow>
+                  )}
+                  {r.seats && <DetailRow label="席数">{r.seats}</DetailRow>}
+                  {r.access_text && (
+                    <DetailRow label="アクセス">
+                      <span className="whitespace-pre-line">{r.access_text}</span>
+                    </DetailRow>
+                  )}
+                  {r.cards_accepted && (
+                    <DetailRow label="クレカ">{r.cards_accepted}</DetailRow>
+                  )}
+                  {r.smoking && <DetailRow label="喫煙">{r.smoking}</DetailRow>}
+                  {r.parking && <DetailRow label="駐車場">{r.parking}</DetailRow>}
+                  {(r.dinner_budget || r.lunch_budget) && (
+                    <DetailRow label="予算 (詳細)">
+                      {r.dinner_budget && <div>夜 {r.dinner_budget}</div>}
+                      {r.lunch_budget && <div>昼 {r.lunch_budget}</div>}
+                    </DetailRow>
+                  )}
+                  {r.rating && (
+                    <DetailRow label="食べログ評価">
+                      <span className="text-[color:var(--color-gold)] font-bold">★ {r.rating}</span>
+                      {r.rating_count ? ` (${r.rating_count}件)` : ""}
+                    </DetailRow>
+                  )}
+                </dl>
+              </section>
+            )}
+
+            {/* GALLERY */}
+            {galleryImages.length > 0 && (
+              <section>
+                <p className="text-xs tracking-[0.3em] text-[color:var(--color-gold)] mb-6">
+                  GALLERY
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                  {galleryImages.map((url) => (
+                    <a
+                      key={url}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="aspect-square overflow-hidden bg-[color:var(--color-bg-soft)] rounded-lg border border-[color:var(--color-border-soft)] hover:border-[color:var(--color-gold)]/40 transition-colors block group"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt=""
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                      />
+                    </a>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
 
           {/* サイドバー */}
@@ -155,6 +237,9 @@ export default async function RestaurantDetailPage(
                 )}
                 {r.official_url && (
                   <ExternalLink href={r.official_url} label="公式サイト" />
+                )}
+                {r.instagram_url && (
+                  <ExternalLink href={r.instagram_url} label="Instagram" />
                 )}
                 {r.google_map_url && (
                   <ExternalLink href={r.google_map_url} label="Google Maps" />
@@ -223,5 +308,22 @@ function ExternalLink({ href, label }: { href: string; label: string }) {
     >
       → {label}
     </a>
+  );
+}
+
+function DetailRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <dt className="text-[10px] tracking-[0.3em] text-[color:var(--color-text-faded)] mb-1.5 uppercase">
+        {label}
+      </dt>
+      <dd className="text-sm text-[color:var(--color-text)]">{children}</dd>
+    </div>
   );
 }

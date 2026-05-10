@@ -2,8 +2,59 @@ import type { Restaurant } from "./types";
 
 // Supabase未接続時のフォールバック用データ
 // schema.sql / seed.sql と整合
+
+function buildDummy(
+  partial: Partial<Restaurant> & {
+    id: string;
+    name: string;
+    slug: string;
+  },
+): Restaurant {
+  return {
+    prefecture: null,
+    area: null,
+    genre: null,
+    description: null,
+    address: null,
+    price_min: null,
+    price_max: null,
+    tabelog_url: null,
+    official_url: null,
+    google_map_url: null,
+    main_image_url: null,
+    gallery_image_urls: [],
+    gallery_video_urls: [],
+    private_room: false,
+    vip_available: false,
+    business_trip_friendly: false,
+    business_dining_score: 3,
+    quietness_score: 3,
+    conversation_score: 3,
+    access_score: 3,
+    customer_types: [],
+    is_published: true,
+    created_at: "2026-05-09T00:00:00Z",
+    updated_at: "2026-05-09T00:00:00Z",
+    editorial_note: null,
+    phone: null,
+    opening_hours: null,
+    closed_days: null,
+    seats: null,
+    smoking: null,
+    cards_accepted: null,
+    parking: null,
+    access_text: null,
+    dinner_budget: null,
+    lunch_budget: null,
+    rating: null,
+    rating_count: null,
+    instagram_url: null,
+    ...partial,
+  };
+}
+
 export const DUMMY_RESTAURANTS: Restaurant[] = [
-  {
+  buildDummy({
     id: "00000000-0000-0000-0000-000000000001",
     name: "銀座 鮨 匠",
     slug: "ginza-sushi-takumi",
@@ -15,12 +66,8 @@ export const DUMMY_RESTAURANTS: Restaurant[] = [
     address: "東京都中央区銀座X-X-X",
     price_min: 30000,
     price_max: 50000,
-    tabelog_url: null,
-    official_url: null,
-    google_map_url: null,
     main_image_url:
       "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=1200&q=80",
-    gallery_image_urls: [],
     private_room: true,
     vip_available: true,
     business_trip_friendly: true,
@@ -29,11 +76,8 @@ export const DUMMY_RESTAURANTS: Restaurant[] = [
     conversation_score: 5,
     access_score: 5,
     customer_types: ["経営者", "弁護士", "金融関係者"],
-    is_published: true,
-    created_at: "2026-05-09T00:00:00Z",
-    updated_at: "2026-05-09T00:00:00Z",
-  },
-  {
+  }),
+  buildDummy({
     id: "00000000-0000-0000-0000-000000000002",
     name: "北新地 焼肉 凛",
     slug: "kitashinchi-yakiniku-rin",
@@ -45,25 +89,17 @@ export const DUMMY_RESTAURANTS: Restaurant[] = [
     address: "大阪府大阪市北区曽根崎新地X-X-X",
     price_min: 25000,
     price_max: 40000,
-    tabelog_url: null,
-    official_url: null,
-    google_map_url: null,
     main_image_url:
       "https://images.unsplash.com/photo-1535473895227-bdecb20fb157?w=1200&q=80",
-    gallery_image_urls: [],
     private_room: true,
     vip_available: true,
-    business_trip_friendly: false,
     business_dining_score: 5,
     quietness_score: 4,
     conversation_score: 5,
     access_score: 4,
     customer_types: ["経営者", "会計士", "不動産関係者"],
-    is_published: true,
-    created_at: "2026-05-09T00:00:00Z",
-    updated_at: "2026-05-09T00:00:00Z",
-  },
-  {
+  }),
+  buildDummy({
     id: "00000000-0000-0000-0000-000000000003",
     name: "名駅 割烹 蒼",
     slug: "meieki-kappo-sou",
@@ -75,25 +111,17 @@ export const DUMMY_RESTAURANTS: Restaurant[] = [
     address: "愛知県名古屋市中村区名駅X-X-X",
     price_min: 20000,
     price_max: 35000,
-    tabelog_url: null,
-    official_url: null,
-    google_map_url: null,
     main_image_url:
       "https://images.unsplash.com/photo-1553621042-f6e147245754?w=1200&q=80",
-    gallery_image_urls: [],
     private_room: true,
-    vip_available: false,
     business_trip_friendly: true,
     business_dining_score: 4,
     quietness_score: 5,
     conversation_score: 5,
     access_score: 5,
     customer_types: ["経営者", "税理士", "医師"],
-    is_published: true,
-    created_at: "2026-05-09T00:00:00Z",
-    updated_at: "2026-05-09T00:00:00Z",
-  },
-  {
+  }),
+  buildDummy({
     id: "00000000-0000-0000-0000-000000000004",
     name: "六本木 鉄板 煌",
     slug: "roppongi-teppan-kou",
@@ -105,12 +133,8 @@ export const DUMMY_RESTAURANTS: Restaurant[] = [
     address: "東京都港区六本木X-X-X",
     price_min: 35000,
     price_max: 60000,
-    tabelog_url: null,
-    official_url: null,
-    google_map_url: null,
     main_image_url:
       "https://images.unsplash.com/photo-1544025162-d76694265947?w=1200&q=80",
-    gallery_image_urls: [],
     private_room: true,
     vip_available: true,
     business_trip_friendly: true,
@@ -119,11 +143,8 @@ export const DUMMY_RESTAURANTS: Restaurant[] = [
     conversation_score: 4,
     access_score: 5,
     customer_types: ["経営者", "外資系役員", "金融関係者"],
-    is_published: true,
-    created_at: "2026-05-09T00:00:00Z",
-    updated_at: "2026-05-09T00:00:00Z",
-  },
-  {
+  }),
+  buildDummy({
     id: "00000000-0000-0000-0000-000000000005",
     name: "福岡 中洲 Bar Rei",
     slug: "fukuoka-nakasu-bar-rei",
@@ -135,13 +156,8 @@ export const DUMMY_RESTAURANTS: Restaurant[] = [
     address: "福岡県福岡市博多区中洲X-X-X",
     price_min: 8000,
     price_max: 15000,
-    tabelog_url: null,
-    official_url: null,
-    google_map_url: null,
     main_image_url:
       "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=1200&q=80",
-    gallery_image_urls: [],
-    private_room: false,
     vip_available: true,
     business_trip_friendly: true,
     business_dining_score: 4,
@@ -149,8 +165,5 @@ export const DUMMY_RESTAURANTS: Restaurant[] = [
     conversation_score: 5,
     access_score: 4,
     customer_types: ["経営者", "弁護士", "医師"],
-    is_published: true,
-    created_at: "2026-05-09T00:00:00Z",
-    updated_at: "2026-05-09T00:00:00Z",
-  },
+  }),
 ];

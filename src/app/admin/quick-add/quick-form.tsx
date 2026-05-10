@@ -21,6 +21,22 @@ type UploadedMedia = {
   uploading?: boolean;
   error?: string;
   localId: string;
+  fromTabelog?: boolean;
+};
+
+type ScrapedExtras = {
+  phone?: string;
+  opening_hours?: string;
+  closed_days?: string;
+  seats?: string;
+  smoking?: string;
+  cards_accepted?: string;
+  parking?: string;
+  access_text?: string;
+  dinner_budget?: string;
+  lunch_budget?: string;
+  rating?: number;
+  rating_count?: number;
 };
 
 export function QuickAddForm() {
@@ -54,6 +70,12 @@ export function QuickAddForm() {
   const [accessScore, setAccessScore] = useState(4);
   const [customerTypes, setCustomerTypes] = useState<string[]>([]);
   const [isPublished, setIsPublished] = useState(false);
+  const [instagramUrl, setInstagramUrl] = useState("");
+  const [officialUrl, setOfficialUrl] = useState("");
+  const [googleMapUrl, setGoogleMapUrl] = useState("");
+
+  // Tabelog から取った詳細情報 (編集可能)
+  const [extras, setExtras] = useState<ScrapedExtras>({});
 
   // ステータス
   const [scraping, setScraping] = useState(false);
@@ -62,6 +84,7 @@ export function QuickAddForm() {
   const [scrapeError, setScrapeError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showExtras, setShowExtras] = useState(true);
 
   // ページ離脱保護
   useEffect(() => {
@@ -77,16 +100,21 @@ export function QuickAddForm() {
   const allUploaded = media.every((m) => !m.uploading);
   const canStep1Next = (tabelogUrl.trim() || media.length > 0) && allUploaded;
 
+  /**
+   * Tabelog 取得 → state を埋める。
+   * 戻り値はスクレイプ結果そのもの (race condition 回避のため呼び出し元が直接使える)。
+   */
   async function handleFetchTabelog() {
-    if (!tabelogUrl.trim()) return;
+    if (!tabelogUrl.trim()) return null;
     setScraping(true);
     setScrapeError(null);
     try {
       const res = await fetchTabelogInfoAction(tabelogUrl.trim());
       if (!res.ok) {
         setScrapeError(res.error ?? "取得失敗");
-        return;
+        return null;
       }
+      // 基本情報
       if (res.name && !name) setName(res.name);
       if (res.area && !area) setArea(res.area);
       if (res.prefecture && !prefecture) setPrefecture(res.prefecture);
@@ -97,26 +125,71 @@ export function QuickAddForm() {
       if (res.name && !slug) {
         setSlug(generateSlugFromName(res.name, res.area));
       }
+      // 予算 (数値で入る)
+      if (res.priceMin && !priceMin) setPriceMin(res.priceMin);
+      if (res.priceMax && !priceMax) setPriceMax(res.priceMax);
+      // 個室自動判定
+      if (res.privateRoom === true && !privateRoom) setPrivateRoom(true);
+
+      // 拡張情報
+      setExtras((prev) => ({
+        phone: res.phone ?? prev.phone,
+        opening_hours: res.openingHours ?? prev.opening_hours,
+        closed_days: res.closedDays ?? prev.closed_days,
+        seats: res.seats ?? prev.seats,
+        smoking: res.smoking ?? prev.smoking,
+        cards_accepted: res.cardsAccepted ?? prev.cards_accepted,
+        parking: res.parking ?? prev.parking,
+        access_text: res.accessText ?? prev.access_text,
+        dinner_budget: res.dinnerBudget ?? prev.dinner_budget,
+        lunch_budget: res.lunchBudget ?? prev.lunch_budget,
+        rating: res.rating ?? prev.rating,
+        rating_count: res.ratingCount ?? prev.rating_count,
+      }));
+
+      // ギャラリー画像 (Tabelog の写真複数を media に追加 → アップロードはせず URL 直リンク)
+      if (res.galleryImages && res.galleryImages.length > 0) {
+        const newGallery: UploadedMedia[] = res.galleryImages
+          .filter((u) => !media.some((m) => m.url === u))
+          .map((u) => ({
+            url: u,
+            kind: "image" as const,
+            localId: `tabelog-${u}`,
+            fromTabelog: true,
+          }));
+        if (newGallery.length > 0) {
+          setMedia((prev) => [...prev, ...newGallery]);
+        }
+      }
+
+      return res;
     } finally {
       setScraping(false);
     }
   }
 
-  async function handleAutoFill() {
+  /** AI生成: 引数で値を受け取れるようにして、closure 経由のstale read を防ぐ */
+  async function handleAutoFill(overrides?: {
+    name?: string;
+    prefecture?: string;
+    area?: string;
+    genreSlug?: string;
+    tabelogDescription?: string;
+  }) {
     setAutoFilling(true);
     try {
       const res = await autoFillAction({
-        name,
-        prefecture,
-        area,
-        genreSlug: genre,
+        name: overrides?.name ?? name,
+        prefecture: overrides?.prefecture ?? prefecture,
+        area: overrides?.area ?? area,
+        genreSlug: overrides?.genreSlug ?? genre,
         priceMin: typeof priceMin === "number" ? priceMin : undefined,
         priceMax: typeof priceMax === "number" ? priceMax : undefined,
         privateRoom,
         vipAvailable,
         businessTripFriendly,
         editorialNote,
-        tabelogDescription,
+        tabelogDescription: overrides?.tabelogDescription ?? tabelogDescription,
       });
       setDescription(res.description);
       setAiSource(res.descriptionSource);
@@ -216,6 +289,9 @@ export function QuickAddForm() {
         price_min: typeof priceMin === "number" ? priceMin : null,
         price_max: typeof priceMax === "number" ? priceMax : null,
         tabelog_url: tabelogUrl,
+        official_url: officialUrl,
+        google_map_url: googleMapUrl,
+        instagram_url: instagramUrl,
         main_image_url: mainImageUrl,
         gallery_image_urls: galleryImages,
         gallery_video_urls: galleryVideos,
@@ -229,6 +305,19 @@ export function QuickAddForm() {
         customer_types: customerTypes,
         editorial_note: editorialNote,
         is_published: isPublished,
+        // 拡張
+        phone: extras.phone,
+        opening_hours: extras.opening_hours,
+        closed_days: extras.closed_days,
+        seats: extras.seats,
+        smoking: extras.smoking,
+        cards_accepted: extras.cards_accepted,
+        parking: extras.parking,
+        access_text: extras.access_text,
+        dinner_budget: extras.dinner_budget,
+        lunch_budget: extras.lunch_budget,
+        rating: extras.rating ?? null,
+        rating_count: extras.rating_count ?? null,
       });
       if (!res.ok) {
         setError(res.error);
@@ -240,16 +329,23 @@ export function QuickAddForm() {
 
   const canSave = !pending && allUploaded && name && slug && prefecture && genre;
 
-  // step 2 自動 AI 生成 (step 1→2 の遷移時に scraper も走らせる)
+  // step 2 自動 AI 生成 (step 1→2 の遷移時に scraper も走らせ、結果を直接 AI に渡す)
   async function advanceFromStep1() {
+    let scraped: Awaited<ReturnType<typeof handleFetchTabelog>> = null;
     if (tabelogUrl.trim() && !name) {
-      await handleFetchTabelog();
+      scraped = await handleFetchTabelog();
     }
     setStep(2);
-    // step 2 表示後すぐ AI 生成を試みる (description が空の時のみ)
-    setTimeout(() => {
-      if (!description) handleAutoFill();
-    }, 300);
+    if (!description) {
+      // race condition fix: closure 経由ではなく scraped から直接渡す
+      await handleAutoFill({
+        name: scraped?.name ?? undefined,
+        prefecture: scraped?.prefecture ?? undefined,
+        area: scraped?.area ?? undefined,
+        genreSlug: scraped?.genreSlug ?? undefined,
+        tabelogDescription: scraped?.description ?? undefined,
+      });
+    }
   }
 
   return (
@@ -277,12 +373,37 @@ export function QuickAddForm() {
               STEP 01 — CAPTURE
             </p>
             <h2 className="font-serif text-2xl sm:text-3xl leading-snug mb-8">
-              撮影 or URL を貼って、
+              URL を貼って、
               <br />
               取材を始める。
             </h2>
 
+            {/* 食べログURL (一番上に昇格) */}
+            <div className="qa-fade-up mb-8">
+              <label className="block text-[10px] tracking-[0.4em] text-[color:var(--color-gold)] mb-2 uppercase font-bold">
+                ★ Tabelog URL
+              </label>
+              <input
+                type="url"
+                inputMode="url"
+                value={tabelogUrl}
+                onChange={(e) => setTabelogUrl(e.target.value)}
+                placeholder="https://tabelog.com/..."
+                className="qa-input qa-input-sans"
+              />
+              <p className="text-[10px] text-[color:var(--color-text-faded)] mt-2 leading-relaxed">
+                URL貼って「次へ」を押すと、店名/エリア/ジャンル/住所/電話/営業時間/予算/席数/個室/写真ギャラリー
+                を一気に取得 → AIが紹介文も書きます。
+              </p>
+              {scrapeError && (
+                <p className="text-xs text-red-400 mt-2">{scrapeError}</p>
+              )}
+            </div>
+
             {/* 写真 / 動画 */}
+            <p className="text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-3 uppercase">
+              + 自分の写真・動画 (任意)
+            </p>
             <div className="grid grid-cols-2 gap-3 mb-6">
               <label className="qa-capture-btn">
                 <input
@@ -346,6 +467,11 @@ export function QuickAddForm() {
                         MAIN
                       </span>
                     )}
+                    {m.fromTabelog && (
+                      <span className="absolute bottom-1.5 right-1.5 text-[8px] bg-black/70 text-[color:var(--color-text-muted)] px-1.5 py-0.5 tracking-widest rounded">
+                        TBLG
+                      </span>
+                    )}
                     <button
                       type="button"
                       onClick={() => removeMedia(m.localId)}
@@ -368,26 +494,6 @@ export function QuickAddForm() {
               </div>
             )}
 
-            {/* 食べログURL */}
-            <div className="qa-fade-up mb-6">
-              <label className="block text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-2 uppercase">
-                Tabelog URL (optional)
-              </label>
-              <div className="flex gap-2 items-end">
-                <input
-                  type="url"
-                  inputMode="url"
-                  value={tabelogUrl}
-                  onChange={(e) => setTabelogUrl(e.target.value)}
-                  placeholder="https://tabelog.com/..."
-                  className="qa-input qa-input-sans flex-1"
-                />
-              </div>
-              {scrapeError && (
-                <p className="text-xs text-red-400 mt-2">{scrapeError}</p>
-              )}
-            </div>
-
             {/* 取材メモ */}
             <div className="qa-fade-up mb-6">
               <label className="block text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-2 uppercase">
@@ -397,7 +503,7 @@ export function QuickAddForm() {
                 value={editorialNote}
                 onChange={(e) => setEditorialNote(e.target.value)}
                 rows={3}
-                placeholder="取材時の所感を書いておくと、AI がブランドトーンに沿った紹介文を書きます (例: 完全個室、英語対応マスター、和の意匠が美しい)"
+                placeholder="取材時の所感を書くと、AIがブランドトーンに沿った紹介文に反映 (例: カウンター8席、英語対応、季節の意匠が美しい)"
                 className="qa-textarea"
               />
             </div>
@@ -517,6 +623,11 @@ export function QuickAddForm() {
                   className="qa-input qa-input-sans flex-1"
                 />
               </div>
+              {(extras.dinner_budget || extras.lunch_budget) && (
+                <p className="text-[10px] text-[color:var(--color-text-faded)] mt-2">
+                  Tabelog: 夜 {extras.dinner_budget ?? "—"} / 昼 {extras.lunch_budget ?? "—"}
+                </p>
+              )}
             </div>
 
             {/* AI生成された説明 */}
@@ -527,7 +638,7 @@ export function QuickAddForm() {
                 </label>
                 <button
                   type="button"
-                  onClick={handleAutoFill}
+                  onClick={() => handleAutoFill()}
                   disabled={autoFilling}
                   className="text-[10px] tracking-[0.3em] text-[color:var(--color-gold)] hover:underline disabled:opacity-50"
                 >
@@ -551,10 +662,80 @@ export function QuickAddForm() {
               )}
               {aiSource && !autoFilling && (
                 <p className="text-[9px] tracking-widest text-[color:var(--color-text-faded)] mt-2 uppercase">
-                  via {aiSource === "ai" ? "Claude AI" : "Editorial Engine"}
+                  via {aiSource === "ai" ? "Claude AI ✨" : "Editorial Engine"}
                 </p>
               )}
             </div>
+
+            {/* Tabelog から取った詳細情報 */}
+            {(extras.phone || extras.opening_hours || extras.seats || extras.access_text || extras.rating) && (
+              <div className="mb-6 qa-fade-up border border-[color:var(--color-gold)]/20 rounded-2xl">
+                <button
+                  type="button"
+                  onClick={() => setShowExtras(!showExtras)}
+                  className="w-full text-left px-5 py-4 flex items-center justify-between"
+                >
+                  <span className="text-[10px] tracking-[0.4em] text-[color:var(--color-gold)] uppercase">
+                    {showExtras ? "▼" : "▶"} Tabelog から取得した詳細
+                  </span>
+                  {extras.rating && (
+                    <span className="text-xs text-[color:var(--color-gold)]">
+                      ★ {extras.rating} ({extras.rating_count ?? "?"}件)
+                    </span>
+                  )}
+                </button>
+                {showExtras && (
+                  <div className="px-5 pb-5 space-y-3 qa-fade-up">
+                    <ExtrasField
+                      label="電話"
+                      value={extras.phone}
+                      onChange={(v) => setExtras({ ...extras, phone: v })}
+                    />
+                    <ExtrasField
+                      label="営業時間"
+                      value={extras.opening_hours}
+                      multiline
+                      onChange={(v) => setExtras({ ...extras, opening_hours: v })}
+                    />
+                    <ExtrasField
+                      label="定休日"
+                      value={extras.closed_days}
+                      onChange={(v) => setExtras({ ...extras, closed_days: v })}
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <ExtrasField
+                        label="席数"
+                        value={extras.seats}
+                        onChange={(v) => setExtras({ ...extras, seats: v })}
+                      />
+                      <ExtrasField
+                        label="駐車場"
+                        value={extras.parking}
+                        onChange={(v) => setExtras({ ...extras, parking: v })}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <ExtrasField
+                        label="クレカ"
+                        value={extras.cards_accepted}
+                        onChange={(v) => setExtras({ ...extras, cards_accepted: v })}
+                      />
+                      <ExtrasField
+                        label="喫煙"
+                        value={extras.smoking}
+                        onChange={(v) => setExtras({ ...extras, smoking: v })}
+                      />
+                    </div>
+                    <ExtrasField
+                      label="アクセス"
+                      value={extras.access_text}
+                      multiline
+                      onChange={(v) => setExtras({ ...extras, access_text: v })}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -613,7 +794,7 @@ export function QuickAddForm() {
               onClick={() => setShowAdvanced(!showAdvanced)}
               className="block w-full text-left text-[10px] tracking-[0.3em] text-[color:var(--color-text-faded)] hover:text-[color:var(--color-gold)] py-3 border-t border-b border-[color:var(--color-border-soft)] mb-4"
             >
-              {showAdvanced ? "▼" : "▶"} ADVANCED — 住所 / slug / 取材URL
+              {showAdvanced ? "▼" : "▶"} ADVANCED — 住所 / slug / 公式 / Insta
             </button>
             {showAdvanced && (
               <div className="space-y-4 mb-6 qa-fade-up">
@@ -645,6 +826,42 @@ export function QuickAddForm() {
                   <input
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
+                    className="qa-input qa-input-sans"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-1 uppercase">
+                    Official Site URL
+                  </label>
+                  <input
+                    type="url"
+                    value={officialUrl}
+                    onChange={(e) => setOfficialUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="qa-input qa-input-sans"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-1 uppercase">
+                    Instagram URL
+                  </label>
+                  <input
+                    type="url"
+                    value={instagramUrl}
+                    onChange={(e) => setInstagramUrl(e.target.value)}
+                    placeholder="https://www.instagram.com/..."
+                    className="qa-input qa-input-sans"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-1 uppercase">
+                    Google Maps URL
+                  </label>
+                  <input
+                    type="url"
+                    value={googleMapUrl}
+                    onChange={(e) => setGoogleMapUrl(e.target.value)}
+                    placeholder="https://maps.google.com/..."
                     className="qa-input qa-input-sans"
                   />
                 </div>
@@ -705,6 +922,25 @@ export function QuickAddForm() {
                 </div>
               </div>
             </div>
+
+            {/* 取得したリッチ情報のサマリ */}
+            {(extras.phone || extras.opening_hours || extras.seats) && (
+              <div className="mb-6 qa-fade-up text-[11px] text-[color:var(--color-text-muted)] space-y-1.5 border border-[color:var(--color-border-soft)] rounded-xl p-4">
+                {extras.phone && <div>📞 {extras.phone}</div>}
+                {extras.opening_hours && (
+                  <div>🕐 {extras.opening_hours.replace(/\n/g, " / ")}</div>
+                )}
+                {extras.seats && <div>🪑 {extras.seats}</div>}
+                {extras.access_text && (
+                  <div>🚉 {extras.access_text.split("\n")[0]}</div>
+                )}
+                {media.filter((m) => m.kind === "image").length > 0 && (
+                  <div>
+                    📷 {media.filter((m) => m.kind === "image").length} 枚
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* 公開トグル */}
             <div className="flex items-center justify-between p-5 border border-[color:var(--color-border-soft)] rounded-2xl mb-6">
@@ -794,7 +1030,7 @@ export function QuickAddForm() {
           </div>
           {step === 1 && (
             <p className="max-w-md mx-auto text-center text-[10px] tracking-widest text-[color:var(--color-text-faded)] mt-2">
-              写真 or URL のどちらか入れて「次へ」
+              Tabelog URL を貼って「次へ」 → 全自動取得 + AI記事
             </p>
           )}
         </div>
@@ -804,6 +1040,41 @@ export function QuickAddForm() {
 }
 
 /* ============== コンポーネント ============== */
+
+function ExtrasField({
+  label,
+  value,
+  onChange,
+  multiline = false,
+}: {
+  label: string;
+  value: string | undefined;
+  onChange: (v: string) => void;
+  multiline?: boolean;
+}) {
+  if (!value && value !== "") return null;
+  return (
+    <div>
+      <label className="block text-[10px] tracking-[0.3em] text-[color:var(--color-text-faded)] mb-1 uppercase">
+        {label}
+      </label>
+      {multiline ? (
+        <textarea
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          rows={2}
+          className="w-full bg-transparent border border-[color:var(--color-border-soft)] focus:border-[color:var(--color-gold)] outline-none text-xs px-3 py-2 rounded-lg"
+        />
+      ) : (
+        <input
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full bg-transparent border border-[color:var(--color-border-soft)] focus:border-[color:var(--color-gold)] outline-none text-xs px-3 py-2 rounded-lg"
+        />
+      )}
+    </div>
+  );
+}
 
 function DotScore({
   label,

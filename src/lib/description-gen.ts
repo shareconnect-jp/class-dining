@@ -201,8 +201,8 @@ VIP対応: ${input.vipAvailable ? "あり" : "なし"}
 本文だけを返してください (見出しや前置き、引用符は不要)。`;
 
     const response = await client.messages.create({
-      model: "claude-sonnet-4-7",
-      max_tokens: 400,
+      model: "claude-sonnet-4-6",
+      max_tokens: 500,
       messages: [{ role: "user", content: prompt }],
     });
 

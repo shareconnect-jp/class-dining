@@ -61,6 +61,8 @@ type SavePayload = {
   price_min?: number | null;
   price_max?: number | null;
   tabelog_url?: string;
+  official_url?: string;
+  google_map_url?: string;
   main_image_url?: string;
   gallery_image_urls?: string[];
   gallery_video_urls?: string[];
@@ -74,6 +76,20 @@ type SavePayload = {
   customer_types?: string[];
   editorial_note?: string;
   is_published?: boolean;
+  // 拡張フィールド
+  phone?: string;
+  opening_hours?: string;
+  closed_days?: string;
+  seats?: string;
+  smoking?: string;
+  cards_accepted?: string;
+  parking?: string;
+  access_text?: string;
+  dinner_budget?: string;
+  lunch_budget?: string;
+  rating?: number | null;
+  rating_count?: number | null;
+  instagram_url?: string;
 };
 
 export async function saveQuickRestaurant(payload: SavePayload) {
@@ -114,6 +130,21 @@ export async function saveQuickRestaurant(payload: SavePayload) {
       customer_types: payload.customer_types ?? [],
       editorial_note: payload.editorial_note || null,
       is_published: payload.is_published ?? false,
+      official_url: payload.official_url || null,
+      google_map_url: payload.google_map_url || null,
+      phone: payload.phone || null,
+      opening_hours: payload.opening_hours || null,
+      closed_days: payload.closed_days || null,
+      seats: payload.seats || null,
+      smoking: payload.smoking || null,
+      cards_accepted: payload.cards_accepted || null,
+      parking: payload.parking || null,
+      access_text: payload.access_text || null,
+      dinner_budget: payload.dinner_budget || null,
+      lunch_budget: payload.lunch_budget || null,
+      rating: payload.rating ?? null,
+      rating_count: payload.rating_count ?? null,
+      instagram_url: payload.instagram_url || null,
     })
     .select("id, slug")
     .maybeSingle();

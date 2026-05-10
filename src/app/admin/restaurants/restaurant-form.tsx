@@ -37,6 +37,7 @@ type AutofillableState = {
   tabelog_url: string;
   official_url: string;
   google_map_url: string;
+  instagram_url: string;
   main_image_url: string;
 };
 
@@ -64,6 +65,7 @@ function initialState(initial: Restaurant | undefined): AutofillableState {
     tabelog_url: initial?.tabelog_url ?? "",
     official_url: initial?.official_url ?? "",
     google_map_url: initial?.google_map_url ?? "",
+    instagram_url: initial?.instagram_url ?? "",
     main_image_url: initial?.main_image_url ?? "",
   };
 }
@@ -334,6 +336,16 @@ export function RestaurantForm({ initial }: Props) {
             name="google_map_url"
             value={values.google_map_url}
             onChange={(e) => setField("google_map_url", e.target.value)}
+            className={inputCls}
+          />
+        </Field>
+        <Field label="Instagram URL">
+          <input
+            type="url"
+            name="instagram_url"
+            value={values.instagram_url}
+            onChange={(e) => setField("instagram_url", e.target.value)}
+            placeholder="https://www.instagram.com/your_shop/"
             className={inputCls}
           />
         </Field>

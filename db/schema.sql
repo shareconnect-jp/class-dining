@@ -25,6 +25,7 @@ create table if not exists public.restaurants (
   tabelog_url text,
   official_url text,
   google_map_url text,
+  instagram_url text,
   main_image_url text,
   gallery_image_urls text[] default '{}',
   private_room boolean default false,

@@ -22,6 +22,7 @@ export type AutofillFieldKey =
   | "tabelog_url"
   | "official_url"
   | "google_map_url"
+  | "instagram_url"
   | "main_image_url";
 
 export const AUTOFILL_FIELD_LABELS: Record<AutofillFieldKey, string> = {
@@ -42,6 +43,7 @@ export const AUTOFILL_FIELD_LABELS: Record<AutofillFieldKey, string> = {
   tabelog_url: "食べログ URL",
   official_url: "公式サイト",
   google_map_url: "Google Map URL",
+  instagram_url: "Instagram URL",
   main_image_url: "メイン画像 URL",
 };
 
@@ -50,7 +52,7 @@ export type AutofillSnapshot = Partial<Record<AutofillFieldKey, string | number>
 type ScrapeApiResponse =
   | {
       ok: true;
-      source: "tabelog" | "google_maps";
+      source: "tabelog" | "google_maps" | "instagram";
       data: Record<string, unknown>;
       apply: RestaurantFormApply;
       warnings?: string[];
@@ -81,6 +83,7 @@ const FIELD_ORDER: AutofillFieldKey[] = [
   "tabelog_url",
   "official_url",
   "google_map_url",
+  "instagram_url",
   "main_image_url",
 ];
 
@@ -114,7 +117,9 @@ export function UrlAutofillSection({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [snapshot, setSnapshot] = useState<AutofillSnapshot | null>(null);
-  const [source, setSource] = useState<"tabelog" | "google_maps" | null>(null);
+  const [source, setSource] = useState<
+    "tabelog" | "google_maps" | "instagram" | null
+  >(null);
   const [selected, setSelected] = useState<Set<AutofillFieldKey>>(new Set());
 
   const availableKeys = useMemo<AutofillFieldKey[]>(() => {
@@ -214,7 +219,7 @@ export function UrlAutofillSection({
           type="url"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://tabelog.com/... or https://maps.app.goo.gl/..."
+          placeholder="食べログ / Google マップ / Instagram の店舗 URL"
           className="flex-1 px-3 py-2.5 bg-[color:var(--color-bg)] border border-[color:var(--color-border)] focus:border-[color:var(--color-gold)] outline-none text-sm"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -244,7 +249,11 @@ export function UrlAutofillSection({
               SOURCE:
             </span>
             <span className="text-[color:var(--color-gold)] tracking-[0.2em]">
-              {source === "tabelog" ? "食べログ" : "Google Places"}
+              {source === "tabelog"
+                ? "食べログ"
+                : source === "google_maps"
+                  ? "Google Places"
+                  : "Instagram"}
             </span>
             <span className="ml-auto flex gap-3">
               <button

@@ -159,6 +159,9 @@ export default async function RestaurantDetailPage(
                 {r.google_map_url && (
                   <ExternalLink href={r.google_map_url} label="Google Maps" />
                 )}
+                {r.instagram_url && (
+                  <ExternalLink href={r.instagram_url} label="Instagram" />
+                )}
               </div>
             </div>
 

@@ -29,6 +29,7 @@ export const restaurantFormSchema = z.object({
   tabelog_url: z.string().url().optional().or(z.literal("")),
   official_url: z.string().url().optional().or(z.literal("")),
   google_map_url: z.string().url().optional().or(z.literal("")),
+  instagram_url: z.string().url().optional().or(z.literal("")),
   main_image_url: z.string().url().optional().or(z.literal("")),
   private_room: z.boolean().default(false),
   vip_available: z.boolean().default(false),

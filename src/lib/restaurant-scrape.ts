@@ -50,7 +50,7 @@ export type ScrapeErrorCode =
 export type RestaurantScrapeResult =
   | {
       ok: true;
-      source: "tabelog" | "google_maps";
+      source: "tabelog" | "google_maps" | "instagram";
       data: RestaurantScrapeData;
       warnings?: string[];
     }
@@ -128,7 +128,11 @@ function stripPostalFromAddress(address: string): string {
 // ============================================================
 // URL judge
 // ============================================================
-export type UrlSource = "tabelog" | "google_maps_long" | "google_maps_short";
+export type UrlSource =
+  | "tabelog"
+  | "google_maps_long"
+  | "google_maps_short"
+  | "instagram";
 
 export function detectUrlSource(input: string): UrlSource | null {
   let host: string;
@@ -139,6 +143,9 @@ export function detectUrlSource(input: string): UrlSource | null {
   }
   if (host === "tabelog.com" || host.endsWith(".tabelog.com")) return "tabelog";
   if (host === "maps.app.goo.gl" || host === "goo.gl") return "google_maps_short";
+  if (host === "instagram.com" || host.endsWith(".instagram.com")) {
+    return "instagram";
+  }
   if (host === "google.com" || host.endsWith(".google.com")) {
     // /maps/ 配下のみ許可
     try {
@@ -737,6 +744,143 @@ async function scrapeGoogleMaps(
 }
 
 // ============================================================
+// INSTAGRAM (best-effort)
+// ============================================================
+/**
+ * Instagram は公式 API がアカウント所有者向けに限定されており、
+ * 公開プロフィールページもログイン壁が出やすい。ここでは og:* メタタグだけを
+ * best-effort で抽出し、取れた値だけを warning と共に返す。
+ * 取れなくても instagram_url 自体はフォームに反映できるようにする。
+ */
+function cleanInstagramTitle(title: string): string {
+  // 例: "Sushi Takumi Ginza (@sushi_takumi_ginza) • Instagram photos and videos"
+  //     -> "Sushi Takumi Ginza"
+  return title
+    .replace(/\s*[•·|]\s*Instagram.*$/i, "")
+    .replace(/\s*on Instagram.*$/i, "")
+    .replace(/\s*\(@[^)]+\)\s*$/, "")
+    .replace(/^@[\w._]+\s*[-—]\s*/, "")
+    .trim();
+}
+
+function extractInstagramHandle(url: string): string | undefined {
+  try {
+    const u = new URL(url);
+    const seg = u.pathname.split("/").filter(Boolean);
+    if (seg.length === 0) return undefined;
+    // /<handle>/  or  /<handle>/?...
+    // p/<post> / reel/<id> / stories は handle ではないのでスキップ
+    const first = seg[0];
+    if (["p", "reel", "explore", "stories", "tv"].includes(first)) {
+      return undefined;
+    }
+    return first.toLowerCase();
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeInstagramUrl(url: string): string {
+  // クエリ・フラグメントを落として末尾スラッシュを揃える (例: ?igsh=... を除去)
+  try {
+    const u = new URL(url);
+    u.search = "";
+    u.hash = "";
+    let path = u.pathname;
+    if (!path.endsWith("/")) path = `${path}/`;
+    return `${u.protocol}//${u.host}${path}`;
+  } catch {
+    return url;
+  }
+}
+
+async function scrapeInstagram(
+  inputUrl: string,
+): Promise<RestaurantScrapeResult> {
+  const url = normalizeInstagramUrl(inputUrl);
+  const handle = extractInstagramHandle(url);
+  const data: RestaurantScrapeData = { source_url: url };
+  const warnings: string[] = [];
+
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(url, {
+      headers: {
+        "User-Agent": UA,
+        "Accept-Language": "ja-JP,ja;q=0.9,en;q=0.8",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+      },
+      cache: "no-store",
+      redirect: "follow",
+    });
+  } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") {
+      // 失敗してもリンクは登録できるよう ok 扱いで instagram_url だけ返す
+      warnings.push("Instagram の取得がタイムアウトしました (リンクのみ登録可能)");
+      return { ok: true, source: "instagram", data, warnings };
+    }
+    warnings.push(
+      `Instagram の取得に失敗しました: ${e instanceof Error ? e.message : "unknown"} (リンクのみ登録可能)`,
+    );
+    return { ok: true, source: "instagram", data, warnings };
+  }
+
+  if (!res.ok) {
+    warnings.push(
+      `Instagram から HTTP ${res.status} が返りました (ログイン壁の可能性。リンクのみ登録可能)`,
+    );
+    return { ok: true, source: "instagram", data, warnings };
+  }
+
+  let html: string;
+  try {
+    html = await res.text();
+  } catch {
+    warnings.push("Instagram のレスポンス本文を読めませんでした (リンクのみ登録可能)");
+    return { ok: true, source: "instagram", data, warnings };
+  }
+
+  const $ = cheerio.load(html);
+  const ogTitle = $('meta[property="og:title"]').attr("content") ?? undefined;
+  const ogDesc = $('meta[property="og:description"]').attr("content") ?? undefined;
+  const ogImage = $('meta[property="og:image"]').attr("content") ?? undefined;
+
+  if (ogTitle) {
+    const cleaned = cleanInstagramTitle(ogTitle);
+    if (cleaned && cleaned !== "Instagram") data.name = cleaned;
+  } else if (handle) {
+    // フォールバック: ハンドル名から推定 (admin が手で直す前提)
+    data.name = handle;
+    warnings.push(
+      "Instagram の og:title を取得できなかったため、ユーザー名をそのまま店名候補にしました",
+    );
+  }
+
+  if (ogImage) data.image_url = ogImage;
+  if (ogDesc) {
+    // 例: "1,234 Followers, ... - See Instagram photos and videos from @handle"
+    // 説明文として使えそうな部分だけ抜き出す
+    const trimmed = ogDesc.replace(/\s*See Instagram.*$/i, "").trim();
+    if (trimmed && /[一-龯ぁ-んァ-ヶa-zA-Z]/.test(trimmed)) {
+      data.category = trimmed;
+    }
+  }
+
+  if (!data.name && !data.image_url) {
+    warnings.push(
+      "Instagram から取得できる情報がありませんでした (ログイン壁の可能性。リンクのみ登録可能)",
+    );
+  } else {
+    warnings.push(
+      "Instagram から取得した情報は限定的です。店名・住所・電話などは手入力で補完してください",
+    );
+  }
+
+  return { ok: true, source: "instagram", data, warnings };
+}
+
+// ============================================================
 // Public entrypoint
 // ============================================================
 export async function scrapeRestaurantUrl(
@@ -752,11 +896,12 @@ export async function scrapeRestaurantUrl(
       ok: false,
       code: "invalid_url",
       error:
-        "対応していない URL です。食べログ または Google マップの店舗 URL を入力してください",
+        "対応していない URL です。食べログ / Google マップ / Instagram の URL を入力してください",
     };
   }
 
   if (source === "tabelog") return scrapeTabelogV2(url);
+  if (source === "instagram") return scrapeInstagram(url);
   return scrapeGoogleMaps(url, source);
 }
 
@@ -775,6 +920,7 @@ export type RestaurantFormApply = Partial<
     | "official_url"
     | "tabelog_url"
     | "google_map_url"
+    | "instagram_url"
     | "price_min"
     | "price_max"
   >
@@ -818,5 +964,9 @@ export function toFormApply(
 
   if (result.source === "tabelog") apply.tabelog_url = inputUrl;
   if (result.source === "google_maps") apply.google_map_url = inputUrl;
+  if (result.source === "instagram") {
+    // 正規化後の URL を反映 (?igsh= 等を除去)
+    apply.instagram_url = d.source_url ?? inputUrl;
+  }
   return apply;
 }

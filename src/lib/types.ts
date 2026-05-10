@@ -19,6 +19,7 @@ export type Restaurant = {
   tabelog_url: string | null;
   official_url: string | null;
   google_map_url: string | null;
+  instagram_url: string | null;
   main_image_url: string | null;
   gallery_image_urls: string[];
   private_room: boolean;

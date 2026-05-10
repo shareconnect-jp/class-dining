@@ -101,6 +101,249 @@ body {
   color: #f6f1e8;
 }
 
+/* ===== quick-add ウィザード用 ===== */
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+.qa-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(200, 169, 107, 0.04) 0%,
+    rgba(200, 169, 107, 0.18) 50%,
+    rgba(200, 169, 107, 0.04) 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+@keyframes fade-up {
+  0% { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.qa-fade-up {
+  animation: fade-up 0.5s ease-out both;
+}
+
+@keyframes gold-glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(200, 169, 107, 0.0); }
+  50% { box-shadow: 0 0 30px 4px rgba(200, 169, 107, 0.25); }
+}
+.qa-pulse {
+  animation: gold-glow-pulse 1.8s ease-in-out infinite;
+}
+
+/* ピル型トグル (5段階スコア・選択ピル等) */
+.qa-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 999px;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.qa-pill:hover {
+  border-color: rgba(200, 169, 107, 0.5);
+  color: var(--color-gold);
+}
+.qa-pill[aria-pressed="true"] {
+  background: var(--color-gold);
+  color: var(--color-bg);
+  border-color: var(--color-gold);
+  font-weight: 700;
+}
+
+/* スコア用5ドット */
+.qa-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.qa-dot.active {
+  background: linear-gradient(135deg, #e8d3a0 0%, #c8a96b 50%, #8a6f3f 100%);
+  border-color: var(--color-gold);
+  box-shadow: 0 0 8px rgba(200, 169, 107, 0.4);
+}
+
+/* キャプチャボタン (大きい円形タッチ領域) */
+.qa-capture-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 28px 18px;
+  background: linear-gradient(
+    135deg,
+    rgba(200, 169, 107, 0.06) 0%,
+    rgba(200, 169, 107, 0.02) 100%
+  );
+  border: 1.5px dashed rgba(200, 169, 107, 0.35);
+  border-radius: 24px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.qa-capture-btn:hover,
+.qa-capture-btn:active {
+  border-color: var(--color-gold);
+  background: linear-gradient(
+    135deg,
+    rgba(200, 169, 107, 0.12) 0%,
+    rgba(200, 169, 107, 0.04) 100%
+  );
+  transform: scale(0.98);
+}
+
+.qa-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 14px 2px;
+  font-size: 18px;
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.2s ease;
+  font-family: var(--font-serif);
+  letter-spacing: 0.02em;
+}
+.qa-input:focus {
+  border-bottom-color: var(--color-gold);
+}
+.qa-input-sans {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+.qa-textarea {
+  width: 100%;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 14px 16px;
+  font-size: 15px;
+  line-height: 1.85;
+  color: var(--color-text);
+  outline: none;
+  border-radius: 12px;
+  resize: vertical;
+  transition: border-color 0.2s ease;
+}
+.qa-textarea:focus {
+  border-color: var(--color-gold);
+}
+
+/* スティッキー底CTA バー */
+.qa-bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  background: linear-gradient(
+    to top,
+    var(--color-bg) 60%,
+    rgba(9, 9, 9, 0)
+  );
+  padding: 16px 20px 24px;
+  pointer-events: none;
+}
+.qa-bottom-bar > * {
+  pointer-events: auto;
+}
+
+/* メインCTA (大型金色ボタン) */
+.qa-cta-primary {
+  display: block;
+  width: 100%;
+  padding: 18px;
+  background: linear-gradient(135deg, #e8d3a0 0%, #c8a96b 50%, #a88c54 100%);
+  color: var(--color-bg);
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.3em;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 12px 40px rgba(200, 169, 107, 0.25);
+  transition: all 0.25s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.qa-cta-primary:hover:not(:disabled),
+.qa-cta-primary:active:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 50px rgba(200, 169, 107, 0.35);
+}
+.qa-cta-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.qa-cta-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 24px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  letter-spacing: 0.3em;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.qa-cta-ghost:hover {
+  color: var(--color-gold);
+  border-color: rgba(200, 169, 107, 0.4);
+}
+
+/* ステップ進捗バー */
+.qa-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  z-index: 40;
+}
+.qa-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #c8a96b, #e8d3a0);
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ヒーロー上部の金色グロー (背景) */
+.qa-hero-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at top,
+    rgba(200, 169, 107, 0.12) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
 /* prose for /features/[slug] markdown body */
 .prose-feature {
   color: var(--color-text);

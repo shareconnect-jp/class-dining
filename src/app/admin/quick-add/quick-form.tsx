@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { GENRES, PREFECTURES } from "@/lib/types";
+import Link from "next/link";
+import { GENRES, PREFECTURES, genreSlugToName } from "@/lib/types";
 import { generateSlugFromName } from "@/lib/slug";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import {
@@ -12,6 +13,7 @@ import {
 } from "./actions";
 
 const STORAGE_BUCKET = "restaurant-photos";
+const TOTAL_STEPS = 4;
 
 type UploadedMedia = {
   url: string;
@@ -24,15 +26,15 @@ type UploadedMedia = {
 export function QuickAddForm() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [step, setStep] = useState(1);
 
-  // 取得・生成のステータス
-  const [scraping, setScraping] = useState(false);
-  const [autoFilling, setAutoFilling] = useState(false);
-  const [aiSource, setAiSource] = useState<"ai" | "rule-based" | null>(null);
-  const [scrapeError, setScrapeError] = useState<string | null>(null);
-
-  // フォーム状態
+  // 取材入力
   const [tabelogUrl, setTabelogUrl] = useState("");
+  const [editorialNote, setEditorialNote] = useState("");
+  const [media, setMedia] = useState<UploadedMedia[]>([]);
+  const [mainImageUrl, setMainImageUrl] = useState("");
+
+  // フォーム値
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [prefecture, setPrefecture] = useState("");
@@ -42,10 +44,7 @@ export function QuickAddForm() {
   const [address, setAddress] = useState("");
   const [priceMin, setPriceMin] = useState<number | "">("");
   const [priceMax, setPriceMax] = useState<number | "">("");
-  const [editorialNote, setEditorialNote] = useState("");
   const [tabelogDescription, setTabelogDescription] = useState("");
-  const [mainImageUrl, setMainImageUrl] = useState("");
-  const [media, setMedia] = useState<UploadedMedia[]>([]);
   const [privateRoom, setPrivateRoom] = useState(false);
   const [vipAvailable, setVipAvailable] = useState(false);
   const [businessTripFriendly, setBusinessTripFriendly] = useState(true);
@@ -55,7 +54,28 @@ export function QuickAddForm() {
   const [accessScore, setAccessScore] = useState(4);
   const [customerTypes, setCustomerTypes] = useState<string[]>([]);
   const [isPublished, setIsPublished] = useState(false);
+
+  // ステータス
+  const [scraping, setScraping] = useState(false);
+  const [autoFilling, setAutoFilling] = useState(false);
+  const [aiSource, setAiSource] = useState<"ai" | "rule-based" | null>(null);
+  const [scrapeError, setScrapeError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // ページ離脱保護
+  useEffect(() => {
+    const hasUnsaved = step > 1 && (name || media.length > 0);
+    if (!hasUnsaved) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [step, name, media.length]);
+
+  const allUploaded = media.every((m) => !m.uploading);
+  const canStep1Next = (tabelogUrl.trim() || media.length > 0) && allUploaded;
 
   async function handleFetchTabelog() {
     if (!tabelogUrl.trim()) return;
@@ -157,7 +177,7 @@ export function QuickAddForm() {
             : m,
         ),
       );
-      if (asMain && i === 0 && newItems[i].kind === "image") {
+      if (asMain && i === 0 && newItems[i].kind === "image" && !mainImageUrl) {
         setMainImageUrl(pub.publicUrl);
       }
     }
@@ -165,11 +185,17 @@ export function QuickAddForm() {
   }
 
   function removeMedia(localId: string) {
+    const target = media.find((m) => m.localId === localId);
     setMedia((prev) => prev.filter((m) => m.localId !== localId));
+    if (target?.url === mainImageUrl) {
+      const nextMain = media.find(
+        (m) => m.localId !== localId && m.kind === "image" && m.url,
+      );
+      setMainImageUrl(nextMain?.url ?? "");
+    }
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function handleSubmit() {
     setError(null);
     const galleryImages = media
       .filter((m) => m.kind === "image" && m.url && m.url !== mainImageUrl)
@@ -212,427 +238,574 @@ export function QuickAddForm() {
     });
   }
 
-  const allUploaded = media.every((m) => !m.uploading);
-  const canSubmit =
-    !pending && allUploaded && name && slug && prefecture && genre;
+  const canSave = !pending && allUploaded && name && slug && prefecture && genre;
+
+  // step 2 自動 AI 生成 (step 1→2 の遷移時に scraper も走らせる)
+  async function advanceFromStep1() {
+    if (tabelogUrl.trim() && !name) {
+      await handleFetchTabelog();
+    }
+    setStep(2);
+    // step 2 表示後すぐ AI 生成を試みる (description が空の時のみ)
+    setTimeout(() => {
+      if (!description) handleAutoFill();
+    }, 300);
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-7 max-w-2xl">
-      {/* STEP 1: 食べログ取得 */}
-      <Section step="1" title="食べログ URL を貼って情報取得">
-        <div className="flex gap-2">
-          <input
-            type="url"
-            inputMode="url"
-            value={tabelogUrl}
-            onChange={(e) => setTabelogUrl(e.target.value)}
-            placeholder="https://tabelog.com/tokyo/..."
-            className={baseInput}
-          />
-          <button
-            type="button"
-            onClick={handleFetchTabelog}
-            disabled={!tabelogUrl.trim() || scraping}
-            className={`${primaryBtn} whitespace-nowrap min-w-[88px]`}
-          >
-            {scraping ? "..." : "取得"}
-          </button>
-        </div>
-        {scrapeError && (
-          <p className="text-xs text-red-400 mt-2">{scrapeError}</p>
-        )}
-        {tabelogDescription && (
-          <p className="text-xs text-[color:var(--color-text-faded)] mt-2 line-clamp-3">
-            食べログ抜粋: {tabelogDescription}
-          </p>
-        )}
-      </Section>
+    <>
+      {/* 進捗バー */}
+      <div className="qa-progress">
+        <div
+          className="qa-progress-fill"
+          style={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
+        />
+      </div>
 
-      {/* STEP 2: 写真・動画 */}
-      <Section step="2" title="写真・動画をアップロード">
-        <p className="text-xs text-[color:var(--color-text-muted)] mb-3">
-          1枚目の画像が自動的にメイン画像になります(後で変更可)。動画は短尺推奨 (50MB以下/本)。
-        </p>
+      {/* ステップ表示 (右上) */}
+      <div className="fixed top-3 right-5 z-40 text-[10px] tracking-[0.4em] text-[color:var(--color-text-faded)]">
+        {step} / {TOTAL_STEPS}
+      </div>
 
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <label className={fileBtn}>
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              multiple
-              className="hidden"
-              onChange={(e) => handleFileChange(e, true)}
-            />
-            📷 写真撮影/選択
-          </label>
-          <label className={fileBtn}>
-            <input
-              type="file"
-              accept="video/*"
-              capture="environment"
-              multiple
-              className="hidden"
-              onChange={(e) => handleFileChange(e)}
-            />
-            🎬 動画
-          </label>
-        </div>
+      <div className="relative min-h-[calc(100vh-4rem)] pb-32">
+        <div className="qa-hero-glow" />
 
-        {media.length > 0 && (
-          <div className="grid grid-cols-3 gap-2">
-            {media.map((m) => (
-              <div
-                key={m.localId}
-                className="relative aspect-square bg-[color:var(--color-bg-elevated)] border border-[color:var(--color-border-soft)] overflow-hidden"
-              >
-                {m.uploading ? (
-                  <div className="w-full h-full flex items-center justify-center text-xs text-[color:var(--color-text-faded)]">
-                    アップロード中…
+        {/* ----------- STEP 1: capture ----------- */}
+        {step === 1 && (
+          <div className="qa-fade-up relative z-10 px-5 pt-8 max-w-md mx-auto">
+            <p className="text-[10px] tracking-[0.5em] text-[color:var(--color-gold)] mb-3 font-bold">
+              STEP 01 — CAPTURE
+            </p>
+            <h2 className="font-serif text-2xl sm:text-3xl leading-snug mb-8">
+              撮影 or URL を貼って、
+              <br />
+              取材を始める。
+            </h2>
+
+            {/* 写真 / 動画 */}
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              <label className="qa-capture-btn">
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handleFileChange(e, true)}
+                />
+                <span className="text-3xl">📷</span>
+                <span className="text-xs tracking-[0.3em] text-[color:var(--color-gold)]">
+                  PHOTO
+                </span>
+              </label>
+              <label className="qa-capture-btn">
+                <input
+                  type="file"
+                  accept="video/*"
+                  capture="environment"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handleFileChange(e)}
+                />
+                <span className="text-3xl">🎬</span>
+                <span className="text-xs tracking-[0.3em] text-[color:var(--color-gold)]">
+                  VIDEO
+                </span>
+              </label>
+            </div>
+
+            {media.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-6 qa-fade-up">
+                {media.map((m) => (
+                  <div
+                    key={m.localId}
+                    className="relative aspect-square bg-[color:var(--color-bg-elevated)] border border-[color:var(--color-border-soft)] overflow-hidden rounded-xl group"
+                  >
+                    {m.uploading ? (
+                      <div className="qa-shimmer absolute inset-0" />
+                    ) : m.error ? (
+                      <div className="w-full h-full flex items-center justify-center text-[10px] text-red-400 p-1 text-center">
+                        {m.error.slice(0, 30)}
+                      </div>
+                    ) : m.kind === "image" ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={m.url}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <video
+                        src={m.url}
+                        className="w-full h-full object-cover"
+                        muted
+                      />
+                    )}
+                    {m.url && m.url === mainImageUrl && (
+                      <span className="absolute top-1.5 left-1.5 text-[9px] bg-[color:var(--color-gold)] text-[color:var(--color-bg)] px-1.5 py-0.5 font-black tracking-widest rounded">
+                        MAIN
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeMedia(m.localId)}
+                      className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/70 text-white text-xs flex items-center justify-center rounded-full"
+                      aria-label="削除"
+                    >
+                      ×
+                    </button>
+                    {m.kind === "image" && m.url && m.url !== mainImageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setMainImageUrl(m.url)}
+                        className="absolute bottom-1.5 left-1.5 right-1.5 text-[9px] bg-black/70 text-white py-1 rounded tracking-widest opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        MAINに
+                      </button>
+                    )}
                   </div>
-                ) : m.error ? (
-                  <div className="w-full h-full flex items-center justify-center text-[10px] text-red-400 p-1 text-center">
-                    {m.error.slice(0, 40)}
+                ))}
+              </div>
+            )}
+
+            {/* 食べログURL */}
+            <div className="qa-fade-up mb-6">
+              <label className="block text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-2 uppercase">
+                Tabelog URL (optional)
+              </label>
+              <div className="flex gap-2 items-end">
+                <input
+                  type="url"
+                  inputMode="url"
+                  value={tabelogUrl}
+                  onChange={(e) => setTabelogUrl(e.target.value)}
+                  placeholder="https://tabelog.com/..."
+                  className="qa-input qa-input-sans flex-1"
+                />
+              </div>
+              {scrapeError && (
+                <p className="text-xs text-red-400 mt-2">{scrapeError}</p>
+              )}
+            </div>
+
+            {/* 取材メモ */}
+            <div className="qa-fade-up mb-6">
+              <label className="block text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-2 uppercase">
+                Field Notes (optional)
+              </label>
+              <textarea
+                value={editorialNote}
+                onChange={(e) => setEditorialNote(e.target.value)}
+                rows={3}
+                placeholder="取材時の所感を書いておくと、AI がブランドトーンに沿った紹介文を書きます (例: 完全個室、英語対応マスター、和の意匠が美しい)"
+                className="qa-textarea"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ----------- STEP 2: review ----------- */}
+        {step === 2 && (
+          <div className="qa-fade-up relative z-10 px-5 pt-8 max-w-md mx-auto">
+            <p className="text-[10px] tracking-[0.5em] text-[color:var(--color-gold)] mb-3 font-bold">
+              STEP 02 — DRAFT
+            </p>
+            <h2 className="font-serif text-2xl sm:text-3xl leading-snug mb-8">
+              {autoFilling ? "編集部が筆を入れています…" : "編集部の下書きを確認"}
+            </h2>
+
+            {/* メイン画像 */}
+            {mainImageUrl && (
+              <div className="aspect-[4/3] mb-6 overflow-hidden rounded-2xl border border-[color:var(--color-border-soft)] qa-fade-up">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={mainImageUrl}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+
+            {/* 店名 */}
+            <div className="mb-6 qa-fade-up">
+              <label className="block text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-1 uppercase">
+                Restaurant
+              </label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="店名"
+                className="qa-input"
+              />
+            </div>
+
+            {/* エリア + ジャンル */}
+            <div className="grid grid-cols-2 gap-4 mb-6 qa-fade-up">
+              <div>
+                <label className="block text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-1 uppercase">
+                  Pref
+                </label>
+                <select
+                  value={prefecture}
+                  onChange={(e) => setPrefecture(e.target.value)}
+                  className="qa-input qa-input-sans"
+                >
+                  <option value="">—</option>
+                  {PREFECTURES.map((p) => (
+                    <option key={p.slug} value={p.name}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-1 uppercase">
+                  Genre
+                </label>
+                <select
+                  value={genre}
+                  onChange={(e) => setGenre(e.target.value)}
+                  className="qa-input qa-input-sans"
+                >
+                  <option value="">—</option>
+                  {GENRES.map((g) => (
+                    <option key={g.slug} value={g.slug}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="mb-6 qa-fade-up">
+              <label className="block text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-1 uppercase">
+                Area
+              </label>
+              <input
+                value={area}
+                onChange={(e) => setArea(e.target.value)}
+                placeholder="例: 銀座"
+                className="qa-input qa-input-sans"
+              />
+            </div>
+
+            {/* 予算 */}
+            <div className="mb-7 qa-fade-up">
+              <label className="block text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-2 uppercase">
+                Price Range (¥)
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={priceMin}
+                  onChange={(e) =>
+                    setPriceMin(e.target.value === "" ? "" : Number(e.target.value))
+                  }
+                  placeholder="20,000"
+                  className="qa-input qa-input-sans flex-1"
+                />
+                <span className="text-[color:var(--color-text-faded)]">—</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={priceMax}
+                  onChange={(e) =>
+                    setPriceMax(e.target.value === "" ? "" : Number(e.target.value))
+                  }
+                  placeholder="40,000"
+                  className="qa-input qa-input-sans flex-1"
+                />
+              </div>
+            </div>
+
+            {/* AI生成された説明 */}
+            <div className="mb-6 qa-fade-up">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] uppercase">
+                  Editorial Copy
+                </label>
+                <button
+                  type="button"
+                  onClick={handleAutoFill}
+                  disabled={autoFilling}
+                  className="text-[10px] tracking-[0.3em] text-[color:var(--color-gold)] hover:underline disabled:opacity-50"
+                >
+                  {autoFilling ? "GENERATING…" : "✨ REGENERATE"}
+                </button>
+              </div>
+              {autoFilling ? (
+                <div className="space-y-2">
+                  <div className="qa-shimmer h-4 rounded" />
+                  <div className="qa-shimmer h-4 rounded w-11/12" />
+                  <div className="qa-shimmer h-4 rounded w-9/12" />
+                </div>
+              ) : (
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={6}
+                  placeholder="ここに紹介文が生成されます。手で書いてもOK。"
+                  className="qa-textarea"
+                />
+              )}
+              {aiSource && !autoFilling && (
+                <p className="text-[9px] tracking-widest text-[color:var(--color-text-faded)] mt-2 uppercase">
+                  via {aiSource === "ai" ? "Claude AI" : "Editorial Engine"}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ----------- STEP 3: feel ----------- */}
+        {step === 3 && (
+          <div className="qa-fade-up relative z-10 px-5 pt-8 max-w-md mx-auto">
+            <p className="text-[10px] tracking-[0.5em] text-[color:var(--color-gold)] mb-3 font-bold">
+              STEP 03 — FEEL
+            </p>
+            <h2 className="font-serif text-2xl sm:text-3xl leading-snug mb-8">
+              店の空気を、
+              <br />
+              評価軸に落とす。
+            </h2>
+
+            <div className="space-y-7 mb-8">
+              <DotScore label="接待" value={businessScore} onChange={setBusinessScore} />
+              <DotScore label="静かさ" value={quietnessScore} onChange={setQuietnessScore} />
+              <DotScore label="会話" value={conversationScore} onChange={setConversationScore} />
+              <DotScore label="アクセス" value={accessScore} onChange={setAccessScore} />
+            </div>
+
+            <div className="mb-7">
+              <p className="text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-3 uppercase">
+                Features
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Pill active={privateRoom} onClick={() => setPrivateRoom(!privateRoom)}>
+                  個室
+                </Pill>
+                <Pill active={vipAvailable} onClick={() => setVipAvailable(!vipAvailable)}>
+                  VIP対応
+                </Pill>
+                <Pill
+                  active={businessTripFriendly}
+                  onClick={() => setBusinessTripFriendly(!businessTripFriendly)}
+                >
+                  出張向き
+                </Pill>
+              </div>
+            </div>
+
+            <div className="mb-7">
+              <p className="text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-3 uppercase">
+                Customer Types
+              </p>
+              <CustomerTypeChips
+                values={customerTypes}
+                onChange={setCustomerTypes}
+              />
+            </div>
+
+            {/* 詳細編集 (折りたたみ) */}
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="block w-full text-left text-[10px] tracking-[0.3em] text-[color:var(--color-text-faded)] hover:text-[color:var(--color-gold)] py-3 border-t border-b border-[color:var(--color-border-soft)] mb-4"
+            >
+              {showAdvanced ? "▼" : "▶"} ADVANCED — 住所 / slug / 取材URL
+            </button>
+            {showAdvanced && (
+              <div className="space-y-4 mb-6 qa-fade-up">
+                <div>
+                  <label className="block text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-1 uppercase">
+                    Slug
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value)}
+                      pattern="[a-z0-9\-]+"
+                      placeholder="ginza-sushi-aoki"
+                      className="qa-input qa-input-sans flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setSlug(generateSlugFromName(name, area))}
+                      className="qa-cta-ghost text-[10px] tracking-[0.2em]"
+                    >
+                      RE-GEN
+                    </button>
                   </div>
-                ) : m.kind === "image" ? (
-                  // eslint-disable-next-line @next/next/no-img-element
+                </div>
+                <div>
+                  <label className="block text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-1 uppercase">
+                    Address
+                  </label>
+                  <input
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="qa-input qa-input-sans"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ----------- STEP 4: publish ----------- */}
+        {step === 4 && (
+          <div className="qa-fade-up relative z-10 px-5 pt-8 max-w-md mx-auto">
+            <p className="text-[10px] tracking-[0.5em] text-[color:var(--color-gold)] mb-3 font-bold">
+              STEP 04 — PUBLISH
+            </p>
+            <h2 className="font-serif text-2xl sm:text-3xl leading-snug mb-8">
+              最終確認、
+              <br />
+              そして公開へ。
+            </h2>
+
+            {/* 店舗カードプレビュー */}
+            <div className="luxury-card overflow-hidden mb-7 qa-fade-up">
+              {mainImageUrl && (
+                <div className="aspect-[16/9] overflow-hidden bg-[color:var(--color-bg-soft)]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={m.url}
+                    src={mainImageUrl}
                     alt=""
                     className="w-full h-full object-cover"
                   />
-                ) : (
-                  <video
-                    src={m.url}
-                    className="w-full h-full object-cover"
-                    muted
-                  />
-                )}
-                {m.url === mainImageUrl && (
-                  <span className="absolute top-1 left-1 text-[10px] bg-[color:var(--color-gold)] text-[color:var(--color-bg)] px-1.5 py-0.5 font-bold">
-                    MAIN
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => removeMedia(m.localId)}
-                  className="absolute top-1 right-1 w-6 h-6 bg-black/70 text-white text-xs flex items-center justify-center"
-                  aria-label="削除"
-                >
-                  ×
-                </button>
-                {m.kind === "image" && m.url && m.url !== mainImageUrl && (
-                  <button
-                    type="button"
-                    onClick={() => setMainImageUrl(m.url)}
-                    className="absolute bottom-1 left-1 right-1 text-[10px] bg-black/60 text-white py-1"
-                  >
-                    メインに
-                  </button>
-                )}
+                </div>
+              )}
+              <div className="p-5">
+                <div className="flex items-center gap-2 text-[10px] tracking-[0.3em] text-[color:var(--color-gold)] mb-2">
+                  <span>{prefecture || "—"}</span>
+                  {area && (
+                    <>
+                      <span className="opacity-40">/</span>
+                      <span>{area}</span>
+                    </>
+                  )}
+                  {genre && (
+                    <>
+                      <span className="opacity-40">/</span>
+                      <span>{genreSlugToName(genre)}</span>
+                    </>
+                  )}
+                </div>
+                <h3 className="font-serif text-xl mb-3">{name || "—"}</h3>
+                <p className="text-xs text-[color:var(--color-text-muted)] leading-relaxed line-clamp-3 mb-4">
+                  {description || "(紹介文未生成)"}
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-[10px] text-[color:var(--color-text-faded)]">
+                  <span>接待 {"●".repeat(businessScore)}</span>
+                  <span>静かさ {"●".repeat(quietnessScore)}</span>
+                  <span>会話 {"●".repeat(conversationScore)}</span>
+                  <span>アクセス {"●".repeat(accessScore)}</span>
+                </div>
               </div>
-            ))}
+            </div>
+
+            {/* 公開トグル */}
+            <div className="flex items-center justify-between p-5 border border-[color:var(--color-border-soft)] rounded-2xl mb-6">
+              <div>
+                <p className="text-sm font-bold mb-1">
+                  {isPublished ? "今すぐ公開" : "下書き保存"}
+                </p>
+                <p className="text-[10px] text-[color:var(--color-text-faded)]">
+                  {isPublished
+                    ? "サイトに即時掲載されます"
+                    : "後で公開できます"}
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isPublished}
+                onClick={() => setIsPublished(!isPublished)}
+                className={`relative w-14 h-8 rounded-full transition-colors ${isPublished ? "bg-[color:var(--color-gold)]" : "bg-[color:var(--color-border)]"}`}
+              >
+                <span
+                  className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${isPublished ? "left-7" : "left-1"}`}
+                />
+              </button>
+            </div>
+
+            {error && (
+              <p className="text-sm text-red-400 leading-relaxed mb-4">
+                {error}
+              </p>
+            )}
           </div>
         )}
-      </Section>
 
-      {/* STEP 3: 取材メモ + AI 補完 */}
-      <Section step="3" title="取材メモ + AI で記事生成">
-        <textarea
-          value={editorialNote}
-          onChange={(e) => setEditorialNote(e.target.value)}
-          rows={4}
-          placeholder="取材時の所感を短くメモ (例: 個室の天井高が高く、海外ゲストにも見栄えがする / マスターが英語対応可)"
-          className={baseInput}
-        />
-        <button
-          type="button"
-          onClick={handleAutoFill}
-          disabled={autoFilling}
-          className={`${secondaryBtn} mt-3 w-full`}
-        >
-          {autoFilling
-            ? "生成中…"
-            : "✨ AI で説明文 + スコア + 客層を自動生成"}
-        </button>
-        {aiSource && (
-          <p className="text-[10px] text-[color:var(--color-text-faded)] mt-2">
-            生成エンジン:{" "}
-            {aiSource === "ai" ? "Claude (AI)" : "ルールベース (AIキー未設定)"}
-          </p>
-        )}
-      </Section>
-
-      {/* STEP 4: 必須情報 */}
-      <Section step="4" title="必須情報の確認">
-        <Field label="店名 *">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className={baseInput}
-          />
-        </Field>
-        <Field label="slug * (URL)">
-          <div className="flex gap-2">
-            <input
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              required
-              pattern="[a-z0-9\-]+"
-              placeholder="ginza-sushi-aoki"
-              className={baseInput}
-            />
-            <button
-              type="button"
-              onClick={() => setSlug(generateSlugFromName(name, area))}
-              className={`${linkBtn} whitespace-nowrap`}
-            >
-              再生成
-            </button>
+        {/* ----------- BOTTOM CTA BAR ----------- */}
+        <div className="qa-bottom-bar">
+          <div className="max-w-md mx-auto flex items-center gap-3">
+            {step > 1 && (
+              <button
+                type="button"
+                onClick={() => setStep(step - 1)}
+                className="qa-cta-ghost"
+                disabled={pending}
+              >
+                ← 戻る
+              </button>
+            )}
+            {step < TOTAL_STEPS && (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (step === 1) await advanceFromStep1();
+                  else setStep(step + 1);
+                }}
+                disabled={
+                  (step === 1 && !canStep1Next) ||
+                  scraping ||
+                  (step === 2 && !name)
+                }
+                className="qa-cta-primary flex-1"
+              >
+                {scraping
+                  ? "解析中…"
+                  : step === 1
+                    ? "次へ"
+                    : step === 2
+                      ? "次へ"
+                      : "確認へ"}
+              </button>
+            )}
+            {step === TOTAL_STEPS && (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!canSave}
+                className="qa-cta-primary flex-1"
+              >
+                {pending
+                  ? "保存中…"
+                  : !allUploaded
+                    ? "アップロード待機"
+                    : isPublished
+                      ? "公開する"
+                      : "下書き保存"}
+              </button>
+            )}
           </div>
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="都道府県 *">
-            <select
-              value={prefecture}
-              onChange={(e) => setPrefecture(e.target.value)}
-              required
-              className={baseInput}
-            >
-              <option value="">選択</option>
-              {PREFECTURES.map((p) => (
-                <option key={p.slug} value={p.name}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="ジャンル *">
-            <select
-              value={genre}
-              onChange={(e) => setGenre(e.target.value)}
-              required
-              className={baseInput}
-            >
-              <option value="">選択</option>
-              {GENRES.map((g) => (
-                <option key={g.slug} value={g.slug}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+          {step === 1 && (
+            <p className="max-w-md mx-auto text-center text-[10px] tracking-widest text-[color:var(--color-text-faded)] mt-2">
+              写真 or URL のどちらか入れて「次へ」
+            </p>
+          )}
         </div>
-        <Field label="エリア (例: 銀座)">
-          <input
-            value={area}
-            onChange={(e) => setArea(e.target.value)}
-            className={baseInput}
-          />
-        </Field>
-        <Field label="住所">
-          <input
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            className={baseInput}
-          />
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="予算 下限 (円)">
-            <input
-              type="number"
-              inputMode="numeric"
-              value={priceMin}
-              onChange={(e) =>
-                setPriceMin(e.target.value === "" ? "" : Number(e.target.value))
-              }
-              className={baseInput}
-            />
-          </Field>
-          <Field label="予算 上限 (円)">
-            <input
-              type="number"
-              inputMode="numeric"
-              value={priceMax}
-              onChange={(e) =>
-                setPriceMax(e.target.value === "" ? "" : Number(e.target.value))
-              }
-              className={baseInput}
-            />
-          </Field>
-        </div>
-      </Section>
-
-      {/* STEP 5: 生成された内容のレビュー */}
-      <Section step="5" title="生成された内容を確認・編集">
-        <Field label="紹介文">
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={5}
-            className={baseInput}
-          />
-        </Field>
-
-        <div className="grid grid-cols-3 gap-3 mt-3">
-          <Check
-            checked={privateRoom}
-            onChange={setPrivateRoom}
-            label="個室"
-          />
-          <Check
-            checked={vipAvailable}
-            onChange={setVipAvailable}
-            label="VIP対応"
-          />
-          <Check
-            checked={businessTripFriendly}
-            onChange={setBusinessTripFriendly}
-            label="出張向き"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-          <ScoreSlider
-            label="接待"
-            value={businessScore}
-            onChange={setBusinessScore}
-          />
-          <ScoreSlider
-            label="静かさ"
-            value={quietnessScore}
-            onChange={setQuietnessScore}
-          />
-          <ScoreSlider
-            label="会話"
-            value={conversationScore}
-            onChange={setConversationScore}
-          />
-          <ScoreSlider
-            label="アクセス"
-            value={accessScore}
-            onChange={setAccessScore}
-          />
-        </div>
-
-        <Field label="客層 (カンマ区切り)">
-          <input
-            value={customerTypes.join(", ")}
-            onChange={(e) =>
-              setCustomerTypes(
-                e.target.value
-                  .split(/[,、]/)
-                  .map((s) => s.trim())
-                  .filter(Boolean),
-              )
-            }
-            className={baseInput}
-          />
-        </Field>
-      </Section>
-
-      {/* STEP 6: 公開 */}
-      <Section step="6" title="保存">
-        <Check
-          checked={isPublished}
-          onChange={setIsPublished}
-          label="今すぐ公開する (オフなら下書きとして保存)"
-        />
-        {error && (
-          <p className="text-sm text-red-400 mt-3 leading-relaxed">{error}</p>
-        )}
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          className={`${primaryBtn} w-full mt-4 py-4 text-base`}
-        >
-          {pending ? "保存中…" : !allUploaded ? "アップロード待機中" : "保存して詳細編集へ"}
-        </button>
-      </Section>
-    </form>
+      </div>
+    </>
   );
 }
 
-const baseInput =
-  "w-full px-3 py-3 bg-[color:var(--color-bg)] border border-[color:var(--color-border)] focus:border-[color:var(--color-gold)] outline-none text-base";
+/* ============== コンポーネント ============== */
 
-const primaryBtn =
-  "px-5 py-3 bg-[color:var(--color-gold)] text-[color:var(--color-bg)] hover:bg-[color:var(--color-gold-soft)] transition-colors font-bold text-sm tracking-wider disabled:opacity-50";
-
-const secondaryBtn =
-  "px-5 py-3 border border-[color:var(--color-gold)] text-[color:var(--color-gold)] hover:bg-[color:var(--color-gold)] hover:text-[color:var(--color-bg)] transition-colors font-bold text-sm tracking-wider disabled:opacity-50";
-
-const linkBtn =
-  "px-3 py-2 text-xs tracking-wider text-[color:var(--color-text-muted)] hover:text-[color:var(--color-gold)] border border-[color:var(--color-border-soft)]";
-
-const fileBtn =
-  "flex items-center justify-center gap-2 py-5 border-2 border-dashed border-[color:var(--color-border)] hover:border-[color:var(--color-gold)] cursor-pointer text-sm";
-
-function Section({
-  step,
-  title,
-  children,
-}: {
-  step: string;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="luxury-card p-5">
-      <h2 className="flex items-center gap-3 mb-4">
-        <span className="font-serif text-lg text-[color:var(--color-gold)]">
-          {step}
-        </span>
-        <span className="text-sm tracking-wider text-[color:var(--color-text)]">
-          {title}
-        </span>
-      </h2>
-      <div className="space-y-3">{children}</div>
-    </section>
-  );
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="block text-xs tracking-wider text-[color:var(--color-text-muted)] mb-1.5">
-        {label}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-function Check({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-}) {
-  return (
-    <label className="flex items-center gap-2 cursor-pointer">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="w-5 h-5 accent-[color:var(--color-gold)]"
-      />
-      <span className="text-sm">{label}</span>
-    </label>
-  );
-}
-
-function ScoreSlider({
+function DotScore({
   label,
   value,
   onChange,
@@ -642,24 +815,87 @@ function ScoreSlider({
   onChange: (v: number) => void;
 }) {
   return (
-    <label className="block">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-[color:var(--color-text-muted)]">
-          {label}
-        </span>
-        <span className="text-xs text-[color:var(--color-gold)] font-bold">
-          {value}/5
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm tracking-widest">{label}</span>
+        <span className="text-[10px] tracking-[0.3em] text-[color:var(--color-gold)]">
+          {value} / 5
         </span>
       </div>
-      <input
-        type="range"
-        min={1}
-        max={5}
-        step={1}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-[color:var(--color-gold)]"
-      />
-    </label>
+      <div className="flex gap-2.5">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange(n)}
+            className={`qa-dot ${n <= value ? "active" : ""}`}
+            aria-label={`${label} ${n}`}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
+
+function Pill({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className="qa-pill"
+    >
+      {children}
+    </button>
+  );
+}
+
+const TYPE_OPTIONS = [
+  "経営者",
+  "弁護士",
+  "税理士",
+  "会計士",
+  "医師",
+  "金融関係者",
+  "不動産関係者",
+  "外資系役員",
+];
+
+function CustomerTypeChips({
+  values,
+  onChange,
+}: {
+  values: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const set = useMemo(() => new Set(values), [values]);
+  function toggle(v: string) {
+    onChange(set.has(v) ? values.filter((x) => x !== v) : [...values, v]);
+  }
+  return (
+    <div className="flex flex-wrap gap-2">
+      {TYPE_OPTIONS.map((t) => (
+        <button
+          key={t}
+          type="button"
+          onClick={() => toggle(t)}
+          aria-pressed={set.has(t)}
+          className="qa-pill"
+        >
+          {t}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// 未使用回避用 (Link import の lint 抑制)
+void Link;

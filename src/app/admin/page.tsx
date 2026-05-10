@@ -29,13 +29,16 @@ export default async function AdminDashboardPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Link
-            href="/admin/restaurants/new"
-            className="luxury-card block p-6 hover:border-[color:var(--color-gold)]"
+            href="/admin/quick-add"
+            className="luxury-card block p-6 hover:border-[color:var(--color-gold)] bg-gradient-to-br from-[color:var(--color-gold)]/15 to-transparent border-[color:var(--color-gold)]/40"
           >
-            <p className="text-xs text-[color:var(--color-gold)] mb-2 tracking-widest">
-              + NEW
+            <p className="text-xs text-[color:var(--color-gold)] mb-2 tracking-widest font-bold">
+              ✨ QUICK ADD
             </p>
-            <p className="font-serif text-lg">店舗を追加</p>
+            <p className="font-serif text-lg">取材投稿 (URL貼ってAIに任せる)</p>
+            <p className="text-[10px] text-[color:var(--color-text-muted)] mt-2">
+              食べログ URL → AI が自動で記事化
+            </p>
           </Link>
           <Link
             href="/admin/restaurants"

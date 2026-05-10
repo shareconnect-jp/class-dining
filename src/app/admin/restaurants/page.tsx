@@ -15,10 +15,10 @@ export default async function AdminRestaurantsListPage() {
           <h1 className="font-serif text-2xl sm:text-3xl">店舗一覧</h1>
         </div>
         <Link
-          href="/admin/restaurants/new"
-          className="inline-block self-start sm:self-auto px-5 py-2.5 border border-[color:var(--color-gold)] text-[color:var(--color-gold)] hover:bg-[color:var(--color-gold)] hover:text-[color:var(--color-bg)] text-xs tracking-[0.3em] transition-colors"
+          href="/admin/quick-add"
+          className="inline-block self-start sm:self-auto px-5 py-2.5 bg-[color:var(--color-gold)] text-[color:var(--color-bg)] hover:bg-[color:var(--color-gold-soft)] text-xs tracking-[0.3em] font-bold transition-colors"
         >
-          + 新規追加
+          + 取材投稿
         </Link>
       </header>
 

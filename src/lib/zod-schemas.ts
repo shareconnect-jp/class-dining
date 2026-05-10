@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+const optionalNumber = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess(
+    (v) => (v === "" || v == null ? undefined : v),
+    schema.optional(),
+  );
+
 export const restaurantFormSchema = z.object({
   name: z.string().min(1, "店名は必須です"),
   slug: z
@@ -11,8 +17,15 @@ export const restaurantFormSchema = z.object({
   genre: z.string().min(1, "ジャンルは必須です"),
   description: z.string().optional().or(z.literal("")),
   address: z.string().optional().or(z.literal("")),
-  price_min: z.coerce.number().int().min(0).optional(),
-  price_max: z.coerce.number().int().min(0).optional(),
+  postal_code: z.string().optional().or(z.literal("")),
+  phone: z.string().optional().or(z.literal("")),
+  opening_hours: z.string().optional().or(z.literal("")),
+  closed_days: z.string().optional().or(z.literal("")),
+  lat: optionalNumber(z.coerce.number().min(-90).max(90)),
+  lng: optionalNumber(z.coerce.number().min(-180).max(180)),
+  price_min: optionalNumber(z.coerce.number().int().min(0)),
+  price_max: optionalNumber(z.coerce.number().int().min(0)),
+  price_range: z.string().optional().or(z.literal("")),
   tabelog_url: z.string().url().optional().or(z.literal("")),
   official_url: z.string().url().optional().or(z.literal("")),
   google_map_url: z.string().url().optional().or(z.literal("")),

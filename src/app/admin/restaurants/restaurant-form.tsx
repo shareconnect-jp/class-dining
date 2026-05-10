@@ -8,15 +8,75 @@ import {
   updateRestaurant,
   deleteRestaurant,
 } from "./actions";
+import {
+  UrlAutofillSection,
+  type AutofillFieldKey,
+  type AutofillSnapshot,
+  AUTOFILL_FIELD_LABELS,
+} from "./url-autofill";
 
 type Props = {
   initial?: Restaurant;
 };
 
+type AutofillableState = {
+  name: string;
+  prefecture: string;
+  area: string;
+  genre: string;
+  address: string;
+  postal_code: string;
+  phone: string;
+  opening_hours: string;
+  closed_days: string;
+  lat: string;
+  lng: string;
+  price_min: string;
+  price_max: string;
+  price_range: string;
+  tabelog_url: string;
+  official_url: string;
+  google_map_url: string;
+  main_image_url: string;
+};
+
+function asString(v: number | string | null | undefined): string {
+  if (v == null) return "";
+  return String(v);
+}
+
+function initialState(initial: Restaurant | undefined): AutofillableState {
+  return {
+    name: initial?.name ?? "",
+    prefecture: initial?.prefecture ?? "",
+    area: initial?.area ?? "",
+    genre: initial?.genre ?? "",
+    address: initial?.address ?? "",
+    postal_code: initial?.postal_code ?? "",
+    phone: initial?.phone ?? "",
+    opening_hours: initial?.opening_hours ?? "",
+    closed_days: initial?.closed_days ?? "",
+    lat: asString(initial?.lat),
+    lng: asString(initial?.lng),
+    price_min: asString(initial?.price_min),
+    price_max: asString(initial?.price_max),
+    price_range: initial?.price_range ?? "",
+    tabelog_url: initial?.tabelog_url ?? "",
+    official_url: initial?.official_url ?? "",
+    google_map_url: initial?.google_map_url ?? "",
+    main_image_url: initial?.main_image_url ?? "",
+  };
+}
+
 export function RestaurantForm({ initial }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const isEdit = Boolean(initial);
+
+  // 自動入力対象フィールドだけ controlled にする (他は uncontrolled のまま)
+  const [values, setValues] = useState<AutofillableState>(() =>
+    initialState(initial),
+  );
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -39,13 +99,42 @@ export function RestaurantForm({ initial }: Props) {
     });
   }
 
+  function applyAutofill(
+    snapshot: AutofillSnapshot,
+    selectedKeys: Set<AutofillFieldKey>,
+  ) {
+    setValues((prev) => {
+      const next = { ...prev };
+      for (const key of selectedKeys) {
+        const v = snapshot[key];
+        if (v == null) continue;
+        next[key] = String(v);
+      }
+      return next;
+    });
+  }
+
+  function setField<K extends keyof AutofillableState>(
+    key: K,
+    value: AutofillableState[K],
+  ) {
+    setValues((prev) => ({ ...prev, [key]: value }));
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-8 max-w-3xl">
+      <UrlAutofillSection
+        currentValues={values}
+        onApply={applyAutofill}
+        fieldLabels={AUTOFILL_FIELD_LABELS}
+      />
+
       <Section title="基本情報">
         <Field label="店名 *">
           <input
             name="name"
-            defaultValue={initial?.name}
+            value={values.name}
+            onChange={(e) => setField("name", e.target.value)}
             required
             className={inputCls}
           />
@@ -63,7 +152,8 @@ export function RestaurantForm({ initial }: Props) {
           <Field label="都道府県 *">
             <select
               name="prefecture"
-              defaultValue={initial?.prefecture ?? ""}
+              value={values.prefecture}
+              onChange={(e) => setField("prefecture", e.target.value)}
               required
               className={inputCls}
             >
@@ -73,12 +163,18 @@ export function RestaurantForm({ initial }: Props) {
                   {p.name}
                 </option>
               ))}
+              {/* 自動入力で master 外の都道府県が来た場合のフォールバック */}
+              {values.prefecture &&
+                !PREFECTURES.some((p) => p.name === values.prefecture) && (
+                  <option value={values.prefecture}>{values.prefecture}</option>
+                )}
             </select>
           </Field>
           <Field label="ジャンル *">
             <select
               name="genre"
-              defaultValue={initial?.genre ?? ""}
+              value={values.genre}
+              onChange={(e) => setField("genre", e.target.value)}
               required
               className={inputCls}
             >
@@ -92,7 +188,12 @@ export function RestaurantForm({ initial }: Props) {
           </Field>
         </div>
         <Field label="エリア (例: 銀座、北新地)">
-          <input name="area" defaultValue={initial?.area ?? ""} className={inputCls} />
+          <input
+            name="area"
+            value={values.area}
+            onChange={(e) => setField("area", e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="紹介文">
           <textarea
@@ -102,22 +203,91 @@ export function RestaurantForm({ initial }: Props) {
             className={inputCls}
           />
         </Field>
-        <Field label="住所">
+      </Section>
+
+      <Section title="住所・連絡先">
+        <div className="grid grid-cols-3 gap-4">
+          <Field label="郵便番号">
+            <input
+              name="postal_code"
+              value={values.postal_code}
+              onChange={(e) => setField("postal_code", e.target.value)}
+              placeholder="106-0046"
+              className={inputCls}
+            />
+          </Field>
+          <div className="col-span-2">
+            <Field label="住所">
+              <input
+                name="address"
+                value={values.address}
+                onChange={(e) => setField("address", e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+          </div>
+        </div>
+        <Field label="電話番号">
           <input
-            name="address"
-            defaultValue={initial?.address ?? ""}
+            name="phone"
+            value={values.phone}
+            onChange={(e) => setField("phone", e.target.value)}
+            placeholder="03-1234-5678"
             className={inputCls}
           />
         </Field>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="営業時間">
+            <textarea
+              name="opening_hours"
+              value={values.opening_hours}
+              onChange={(e) => setField("opening_hours", e.target.value)}
+              rows={3}
+              className={inputCls}
+            />
+          </Field>
+          <Field label="定休日">
+            <textarea
+              name="closed_days"
+              value={values.closed_days}
+              onChange={(e) => setField("closed_days", e.target.value)}
+              rows={3}
+              className={inputCls}
+            />
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="緯度 (lat)">
+            <input
+              name="lat"
+              type="number"
+              step="any"
+              value={values.lat}
+              onChange={(e) => setField("lat", e.target.value)}
+              className={inputCls}
+            />
+          </Field>
+          <Field label="経度 (lng)">
+            <input
+              name="lng"
+              type="number"
+              step="any"
+              value={values.lng}
+              onChange={(e) => setField("lng", e.target.value)}
+              className={inputCls}
+            />
+          </Field>
+        </div>
       </Section>
 
       <Section title="価格・URL">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <Field label="予算 下限 (円)">
             <input
               type="number"
               name="price_min"
-              defaultValue={initial?.price_min ?? ""}
+              value={values.price_min}
+              onChange={(e) => setField("price_min", e.target.value)}
               className={inputCls}
             />
           </Field>
@@ -125,7 +295,17 @@ export function RestaurantForm({ initial }: Props) {
             <input
               type="number"
               name="price_max"
-              defaultValue={initial?.price_max ?? ""}
+              value={values.price_max}
+              onChange={(e) => setField("price_max", e.target.value)}
+              className={inputCls}
+            />
+          </Field>
+          <Field label="価格帯 (表示用)">
+            <input
+              name="price_range"
+              value={values.price_range}
+              onChange={(e) => setField("price_range", e.target.value)}
+              placeholder="¥¥¥ / ￥30,000～"
               className={inputCls}
             />
           </Field>
@@ -134,7 +314,8 @@ export function RestaurantForm({ initial }: Props) {
           <input
             type="url"
             name="tabelog_url"
-            defaultValue={initial?.tabelog_url ?? ""}
+            value={values.tabelog_url}
+            onChange={(e) => setField("tabelog_url", e.target.value)}
             className={inputCls}
           />
         </Field>
@@ -142,7 +323,8 @@ export function RestaurantForm({ initial }: Props) {
           <input
             type="url"
             name="official_url"
-            defaultValue={initial?.official_url ?? ""}
+            value={values.official_url}
+            onChange={(e) => setField("official_url", e.target.value)}
             className={inputCls}
           />
         </Field>
@@ -150,7 +332,8 @@ export function RestaurantForm({ initial }: Props) {
           <input
             type="url"
             name="google_map_url"
-            defaultValue={initial?.google_map_url ?? ""}
+            value={values.google_map_url}
+            onChange={(e) => setField("google_map_url", e.target.value)}
             className={inputCls}
           />
         </Field>
@@ -158,7 +341,8 @@ export function RestaurantForm({ initial }: Props) {
           <input
             type="url"
             name="main_image_url"
-            defaultValue={initial?.main_image_url ?? ""}
+            value={values.main_image_url}
+            onChange={(e) => setField("main_image_url", e.target.value)}
             className={inputCls}
           />
         </Field>

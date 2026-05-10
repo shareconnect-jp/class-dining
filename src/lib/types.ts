@@ -7,8 +7,15 @@ export type Restaurant = {
   genre: string | null;
   description: string | null;
   address: string | null;
+  postal_code: string | null;
+  phone: string | null;
+  opening_hours: string | null;
+  closed_days: string | null;
+  lat: number | null;
+  lng: number | null;
   price_min: number | null;
   price_max: number | null;
+  price_range: string | null;
   tabelog_url: string | null;
   official_url: string | null;
   google_map_url: string | null;

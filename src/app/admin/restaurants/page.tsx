@@ -60,9 +60,15 @@ export default async function AdminRestaurantsListPage() {
                     </td>
                     <td className="py-4 px-2">
                       {r.is_published ? (
-                        <span className="text-xs tracking-widest text-[color:var(--color-gold)] border border-[color:var(--color-gold)]/40 px-2 py-1">
-                          公開
-                        </span>
+                        <a
+                          href={`/restaurants/${r.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs tracking-widest text-[color:var(--color-gold)] border border-[color:var(--color-gold)]/40 hover:bg-[color:var(--color-gold)] hover:text-[color:var(--color-bg)] px-2 py-1 transition-colors"
+                          title="公開ページを新しいタブで開く"
+                        >
+                          公開 ↗
+                        </a>
                       ) : (
                         <span className="text-xs tracking-widest text-[color:var(--color-text-faded)] border border-[color:var(--color-border)] px-2 py-1">
                           下書き
@@ -90,9 +96,14 @@ export default async function AdminRestaurantsListPage() {
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <p className="font-serif text-base flex-1 min-w-0">{r.name}</p>
                   {r.is_published ? (
-                    <span className="text-[10px] tracking-widest text-[color:var(--color-gold)] border border-[color:var(--color-gold)]/40 px-2 py-1 whitespace-nowrap">
-                      公開
-                    </span>
+                    <a
+                      href={`/restaurants/${r.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] tracking-widest text-[color:var(--color-gold)] border border-[color:var(--color-gold)]/40 hover:bg-[color:var(--color-gold)] hover:text-[color:var(--color-bg)] px-2 py-1 whitespace-nowrap transition-colors"
+                    >
+                      公開 ↗
+                    </a>
                   ) : (
                     <span className="text-[10px] tracking-widest text-[color:var(--color-text-faded)] border border-[color:var(--color-border)] px-2 py-1 whitespace-nowrap">
                       下書き

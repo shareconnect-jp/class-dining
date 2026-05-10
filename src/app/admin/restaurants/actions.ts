@@ -21,6 +21,13 @@ export async function createRestaurant(formData: FormData) {
   }
 
   const raw = Object.fromEntries(formData.entries());
+  const splitLines = (v: unknown): string[] =>
+    typeof v === "string" && v
+      ? v
+          .split(/\r?\n/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
   const parsed = restaurantFormSchema.safeParse({
     ...raw,
     private_room: raw.private_room === "on",
@@ -34,6 +41,8 @@ export async function createRestaurant(formData: FormData) {
             .map((s) => s.trim())
             .filter(Boolean)
         : [],
+    gallery_image_urls: splitLines(raw.gallery_image_urls),
+    gallery_video_urls: splitLines(raw.gallery_video_urls),
   });
 
   if (!parsed.success) {
@@ -61,6 +70,13 @@ export async function updateRestaurant(id: string, formData: FormData) {
   }
 
   const raw = Object.fromEntries(formData.entries());
+  const splitLines = (v: unknown): string[] =>
+    typeof v === "string" && v
+      ? v
+          .split(/\r?\n/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
   const parsed = restaurantFormSchema.safeParse({
     ...raw,
     private_room: raw.private_room === "on",
@@ -74,6 +90,8 @@ export async function updateRestaurant(id: string, formData: FormData) {
             .map((s) => s.trim())
             .filter(Boolean)
         : [],
+    gallery_image_urls: splitLines(raw.gallery_image_urls),
+    gallery_video_urls: splitLines(raw.gallery_video_urls),
   });
 
   if (!parsed.success) {

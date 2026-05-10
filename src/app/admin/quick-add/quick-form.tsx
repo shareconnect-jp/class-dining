@@ -942,28 +942,42 @@ export function QuickAddForm() {
               </div>
             )}
 
-            {/* 公開トグル */}
-            <div className="flex items-center justify-between p-5 border border-[color:var(--color-border-soft)] rounded-2xl mb-6">
-              <div>
-                <p className="text-sm font-bold mb-1">
-                  {isPublished ? "今すぐ公開" : "下書き保存"}
-                </p>
-                <p className="text-[10px] text-[color:var(--color-text-faded)]">
-                  {isPublished
-                    ? "サイトに即時掲載されます"
-                    : "後で公開できます"}
-                </p>
-              </div>
+            {/* 公開 or 下書き — 2つの大型ボタンで明示的に選ばせる */}
+            <p className="text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-3 uppercase">
+              Save As
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
               <button
                 type="button"
-                role="switch"
-                aria-checked={isPublished}
-                onClick={() => setIsPublished(!isPublished)}
-                className={`relative w-14 h-8 rounded-full transition-colors ${isPublished ? "bg-[color:var(--color-gold)]" : "bg-[color:var(--color-border)]"}`}
+                onClick={() => setIsPublished(false)}
+                aria-pressed={!isPublished}
+                className={`p-5 rounded-2xl border-2 transition-all text-left ${
+                  !isPublished
+                    ? "border-[color:var(--color-gold)] bg-[color:var(--color-gold)]/10"
+                    : "border-[color:var(--color-border-soft)] hover:border-[color:var(--color-border)]"
+                }`}
               >
-                <span
-                  className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${isPublished ? "left-7" : "left-1"}`}
-                />
+                <p className="font-serif text-base mb-1">📝 下書き保存</p>
+                <p className="text-[10px] text-[color:var(--color-text-faded)] leading-relaxed">
+                  サイトには出ない / 後で公開できる
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsPublished(true)}
+                aria-pressed={isPublished}
+                className={`p-5 rounded-2xl border-2 transition-all text-left ${
+                  isPublished
+                    ? "border-[color:var(--color-gold)] bg-[color:var(--color-gold)]/10"
+                    : "border-[color:var(--color-border-soft)] hover:border-[color:var(--color-border)]"
+                }`}
+              >
+                <p className="font-serif text-base mb-1 text-gold-gradient">
+                  ✨ 今すぐ公開
+                </p>
+                <p className="text-[10px] text-[color:var(--color-text-faded)] leading-relaxed">
+                  サイトに即時掲載される
+                </p>
               </button>
             </div>
 

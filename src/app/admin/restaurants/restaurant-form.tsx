@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import type { Restaurant } from "@/lib/types";
 import { GENRES, PREFECTURES } from "@/lib/types";
+import { MediaUploader } from "@/components/admin/media-uploader";
 import {
   createRestaurant,
   updateRestaurant,
@@ -154,14 +155,32 @@ export function RestaurantForm({ initial }: Props) {
             className={inputCls}
           />
         </Field>
-        <Field label="メイン画像 URL">
+        <Field label="Instagram URL">
           <input
             type="url"
-            name="main_image_url"
-            defaultValue={initial?.main_image_url ?? ""}
+            name="instagram_url"
+            defaultValue={initial?.instagram_url ?? ""}
+            placeholder="https://www.instagram.com/..."
             className={inputCls}
           />
         </Field>
+      </Section>
+
+      <Section title="写真・動画">
+        <p className="text-xs text-[color:var(--color-text-muted)] mb-4">
+          後からいくらでも追加・差し替え可能。MAINと書いた画像が店舗カードのメイン画像になります。
+        </p>
+        <MediaUploader
+          initialMain={initial?.main_image_url ?? ""}
+          initialGalleryImages={initial?.gallery_image_urls ?? []}
+          initialGalleryVideos={initial?.gallery_video_urls ?? []}
+          storagePathPrefix={`restaurants/${initial?.slug ?? "draft"}`}
+          formNames={{
+            main: "main_image_url",
+            galleryImages: "gallery_image_urls",
+            galleryVideos: "gallery_video_urls",
+          }}
+        />
       </Section>
 
       <Section title="特徴">

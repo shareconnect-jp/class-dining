@@ -307,17 +307,66 @@ export async function scrapeTabelog(
     undefined;
 
   // ===== 写真ギャラリー =====
-  // Tabelog の店舗写真は tblg.k-img.com ドメイン
+  // 1) 店舗トップページの tblg.k-img.com 画像
+  // 2) /dtlphotolst/ (写真一覧) からも追加で取得 (もりもり化)
+  // 3) より高解像度版があるなら (150x150 → 600x600) URL を昇格
   const allImages = html.match(
     /https:\/\/tblg\.k-img\.com\/[^"'\s)<>]+\.(?:jpg|jpeg|png|webp)/gi,
   );
   let galleryImages: string[] = [];
   if (allImages) {
-    galleryImages = [...new Set(allImages)]
-      // og:image (= 多分一覧トップ画像) は main_image_url に入るため重複除去
-      .filter((u) => u !== ogImage)
-      .slice(0, 12); // 最大12枚
+    galleryImages = [...new Set(allImages)].filter((u) => u !== ogImage);
   }
+
+  // /dtlphotolst/ も取りに行く (二段fetch、最大限の写真集約)
+  const photoListUrl = (() => {
+    const m = url.match(
+      /^(https:\/\/(?:s\.)?tabelog\.com\/[a-z]+\/A\d{4}\/A\d{6}\/\d+)\/?/,
+    );
+    return m ? `${m[1]}/dtlphotolst/` : null;
+  })();
+  if (photoListUrl) {
+    try {
+      const photoRes = await fetch(photoListUrl, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept-Language": "ja-JP,ja;q=0.9",
+        },
+        cache: "no-store",
+      });
+      if (photoRes.ok) {
+        const photoHtml = await photoRes.text();
+        const photoMatches = photoHtml.match(
+          /https:\/\/tblg\.k-img\.com\/[^"'\s)<>]+\.(?:jpg|jpeg|png|webp)/gi,
+        );
+        if (photoMatches) {
+          const more = [...new Set(photoMatches)].filter(
+            (u) => u !== ogImage && !galleryImages.includes(u),
+          );
+          galleryImages = [...galleryImages, ...more];
+        }
+      }
+    } catch {
+      // ignore — トップページの分だけで進める
+    }
+  }
+
+  // サムネイルサイズを高解像度に昇格 (150x150 → 600x600 等)
+  // Tabelog の URL フォーマット: /150x150_square_xxxxxx.jpg
+  galleryImages = galleryImages.map((u) =>
+    u.replace(
+      /\/(\d+)x(\d+)_(square|rect)_/g,
+      (match, w, h, kind) => {
+        const wn = parseInt(w, 10);
+        if (wn < 480) return `/480x480_${kind}_`;
+        return match;
+      },
+    ),
+  );
+
+  // 重複除去 (高解像度化で同じURLになる可能性)
+  galleryImages = [...new Set(galleryImages)].slice(0, 36); // 最大36枚
 
   const { prefecture } = parsePathInfo(url);
 

@@ -16,12 +16,20 @@ export default async function AdminRestaurantsListPage() {
           <h1 className="font-serif text-2xl sm:text-3xl">店舗一覧</h1>
         </div>
         <div className="flex flex-col sm:items-end gap-3">
-          <Link
-            href="/admin/restaurants/new"
-            className="inline-block self-start sm:self-auto px-5 py-2.5 border border-[color:var(--color-gold)] text-[color:var(--color-gold)] hover:bg-[color:var(--color-gold)] hover:text-[color:var(--color-bg)] text-xs tracking-[0.3em] transition-colors"
-          >
-            + 新規追加
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              href="/admin/restaurants/bulk-import"
+              className="inline-block px-5 py-2.5 border border-[color:var(--color-border)] text-[color:var(--color-text-muted)] hover:border-[color:var(--color-gold)] hover:text-[color:var(--color-gold)] text-xs tracking-[0.3em] transition-colors"
+            >
+              一括登録
+            </Link>
+            <Link
+              href="/admin/restaurants/new"
+              className="inline-block px-5 py-2.5 border border-[color:var(--color-gold)] text-[color:var(--color-gold)] hover:bg-[color:var(--color-gold)] hover:text-[color:var(--color-bg)] text-xs tracking-[0.3em] transition-colors"
+            >
+              + 新規追加
+            </Link>
+          </div>
           <BulkBackfillButton />
         </div>
       </header>

@@ -31,7 +31,13 @@ export const DUMMY_RESTAURANTS: Restaurant[] = [
     line_url: null,
     main_image_url:
       "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=1200&q=80",
-    gallery_image_urls: [],
+    gallery_image_urls: [
+      "https://images.unsplash.com/photo-1553621042-f6e147245754?w=1200&q=80",
+      "https://images.unsplash.com/photo-1607301405390-d831c242f59b?w=1200&q=80",
+      "https://images.unsplash.com/photo-1611143669185-af224c5e3252?w=1200&q=80",
+      "https://images.unsplash.com/photo-1564489563601-c53cfc451e93?w=1200&q=80",
+      "https://images.unsplash.com/photo-1617196034796-73dfa7b1fd56?w=1200&q=80",
+    ],
     private_room: true,
     vip_available: true,
     business_trip_friendly: true,
@@ -72,7 +78,13 @@ export const DUMMY_RESTAURANTS: Restaurant[] = [
     line_url: null,
     main_image_url:
       "https://images.unsplash.com/photo-1535473895227-bdecb20fb157?w=1200&q=80",
-    gallery_image_urls: [],
+    gallery_image_urls: [
+      "https://images.unsplash.com/photo-1544025162-d76694265947?w=1200&q=80",
+      "https://images.unsplash.com/photo-1633237308525-cd587cf71926?w=1200&q=80",
+      "https://images.unsplash.com/photo-1546964124-0cce460f38ef?w=1200&q=80",
+      "https://images.unsplash.com/photo-1529193591184-b1d58069ecdd?w=1200&q=80",
+      "https://images.unsplash.com/photo-1558030006-450675393462?w=1200&q=80",
+    ],
     private_room: true,
     vip_available: true,
     business_trip_friendly: false,
@@ -113,7 +125,13 @@ export const DUMMY_RESTAURANTS: Restaurant[] = [
     line_url: null,
     main_image_url:
       "https://images.unsplash.com/photo-1553621042-f6e147245754?w=1200&q=80",
-    gallery_image_urls: [],
+    gallery_image_urls: [
+      "https://images.unsplash.com/photo-1580822184713-fc5400e7fe10?w=1200&q=80",
+      "https://images.unsplash.com/photo-1576618148400-f54bed99fcfd?w=1200&q=80",
+      "https://images.unsplash.com/photo-1542528180-a1208c5169a5?w=1200&q=80",
+      "https://images.unsplash.com/photo-1565299543923-37dd37887442?w=1200&q=80",
+      "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=1200&q=80",
+    ],
     private_room: true,
     vip_available: false,
     business_trip_friendly: true,
@@ -154,7 +172,13 @@ export const DUMMY_RESTAURANTS: Restaurant[] = [
     line_url: null,
     main_image_url:
       "https://images.unsplash.com/photo-1544025162-d76694265947?w=1200&q=80",
-    gallery_image_urls: [],
+    gallery_image_urls: [
+      "https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=1200&q=80",
+      "https://images.unsplash.com/photo-1611489935015-c97ce6dcce17?w=1200&q=80",
+      "https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=1200&q=80",
+      "https://images.unsplash.com/photo-1574484184081-afea8a62f9c2?w=1200&q=80",
+      "https://images.unsplash.com/photo-1571066811602-716837d681de?w=1200&q=80",
+    ],
     private_room: true,
     vip_available: true,
     business_trip_friendly: true,
@@ -195,7 +219,13 @@ export const DUMMY_RESTAURANTS: Restaurant[] = [
     line_url: null,
     main_image_url:
       "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=1200&q=80",
-    gallery_image_urls: [],
+    gallery_image_urls: [
+      "https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=1200&q=80",
+      "https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=1200&q=80",
+      "https://images.unsplash.com/photo-1572116469696-31de0f17cc34?w=1200&q=80",
+      "https://images.unsplash.com/photo-1574096079513-d8259312b785?w=1200&q=80",
+      "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=1200&q=80",
+    ],
     private_room: false,
     vip_available: true,
     business_trip_friendly: true,

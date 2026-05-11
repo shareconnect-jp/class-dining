@@ -1,25 +1,29 @@
 import Link from "next/link";
 import { fetchAllRestaurants } from "@/lib/data";
 import { genreSlugToName } from "@/lib/types";
+import { BulkBackfillButton } from "./bulk-backfill-button";
 
 export default async function AdminRestaurantsListPage() {
   const restaurants = await fetchAllRestaurants();
 
   return (
     <div className="p-5 sm:p-8 lg:p-10">
-      <header className="mb-8 sm:mb-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-[color:var(--color-border-soft)]">
+      <header className="mb-8 sm:mb-10 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-6 border-b border-[color:var(--color-border-soft)]">
         <div>
           <p className="text-xs tracking-[0.4em] text-[color:var(--color-gold)] mb-2">
             RESTAURANTS
           </p>
           <h1 className="font-serif text-2xl sm:text-3xl">店舗一覧</h1>
         </div>
-        <Link
-          href="/admin/restaurants/new"
-          className="inline-block self-start sm:self-auto px-5 py-2.5 border border-[color:var(--color-gold)] text-[color:var(--color-gold)] hover:bg-[color:var(--color-gold)] hover:text-[color:var(--color-bg)] text-xs tracking-[0.3em] transition-colors"
-        >
-          + 新規追加
-        </Link>
+        <div className="flex flex-col sm:items-end gap-3">
+          <Link
+            href="/admin/restaurants/new"
+            className="inline-block self-start sm:self-auto px-5 py-2.5 border border-[color:var(--color-gold)] text-[color:var(--color-gold)] hover:bg-[color:var(--color-gold)] hover:text-[color:var(--color-bg)] text-xs tracking-[0.3em] transition-colors"
+          >
+            + 新規追加
+          </Link>
+          <BulkBackfillButton />
+        </div>
       </header>
 
       {restaurants.length === 0 ? (

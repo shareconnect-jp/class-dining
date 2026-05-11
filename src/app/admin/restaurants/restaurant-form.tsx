@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import type { Restaurant } from "@/lib/types";
 import { GENRES, PREFECTURES } from "@/lib/types";
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import {
   createRestaurant,
   updateRestaurant,
@@ -14,6 +15,8 @@ import {
   type AutofillSnapshot,
   AUTOFILL_FIELD_LABELS,
 } from "./url-autofill";
+
+const STORAGE_BUCKET = "restaurant-photos";
 
 type Props = {
   initial?: Restaurant;
@@ -84,6 +87,9 @@ export function RestaurantForm({ initial }: Props) {
   // 自動入力対象フィールドだけ controlled にする (他は uncontrolled のまま)
   const [values, setValues] = useState<AutofillableState>(() =>
     initialState(initial),
+  );
+  const [galleryUrls, setGalleryUrls] = useState<string[]>(
+    () => initial?.gallery_image_urls ?? [],
   );
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -398,6 +404,21 @@ export function RestaurantForm({ initial }: Props) {
         </Field>
       </Section>
 
+      <Section title="ギャラリー写真">
+        <p className="text-xs text-[color:var(--color-text-muted)] leading-relaxed">
+          詳細ページの GALLERY セクションに表示されます。写真は多い方がリッチに見えるので、5〜20 枚を目安に追加してください。
+        </p>
+        <GalleryEditor
+          slug={initial?.slug || "draft"}
+          urls={galleryUrls}
+          onChange={setGalleryUrls}
+        />
+        {/* サーバーへ複数値として送信 */}
+        {galleryUrls.map((u, i) => (
+          <input key={`${u}-${i}`} type="hidden" name="gallery_image_urls" value={u} />
+        ))}
+      </Section>
+
       <Section title="特徴">
         <div className="grid grid-cols-3 gap-4">
           <Check
@@ -555,5 +576,162 @@ function Check({
       />
       <span className="text-sm text-[color:var(--color-text-muted)]">{label}</span>
     </label>
+  );
+}
+
+function GalleryEditor({
+  urls,
+  onChange,
+  slug,
+}: {
+  urls: string[];
+  onChange: (next: string[]) => void;
+  slug: string;
+}) {
+  const [urlInput, setUrlInput] = useState("");
+  const [uploadCount, setUploadCount] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setUploadError(null);
+    const supabase = createSupabaseBrowserClient();
+    const base = (slug || "draft").toLowerCase().replace(/[^a-z0-9-]/g, "-");
+    setUploadCount((n) => n + files.length);
+    const uploaded: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const ext = file.name.split(".").pop() ?? "bin";
+      const path = `restaurants/${base}/${Date.now()}-${i}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(path, file, { contentType: file.type, upsert: false });
+      setUploadCount((n) => n - 1);
+      if (upErr) {
+        setUploadError(upErr.message);
+        continue;
+      }
+      const { data: pub } = supabase.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(path);
+      uploaded.push(pub.publicUrl);
+    }
+    if (uploaded.length > 0) onChange([...urls, ...uploaded]);
+    e.target.value = "";
+  }
+
+  function addUrl() {
+    const u = urlInput.trim();
+    if (!u) return;
+    try {
+      new URL(u);
+    } catch {
+      setUploadError("有効な URL を入力してください");
+      return;
+    }
+    onChange([...urls, u]);
+    setUrlInput("");
+    setUploadError(null);
+  }
+
+  function removeAt(i: number) {
+    onChange(urls.filter((_, j) => j !== i));
+  }
+
+  function moveAt(from: number, to: number) {
+    if (to < 0 || to >= urls.length) return;
+    const next = [...urls];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    onChange(next);
+  }
+
+  return (
+    <div className="space-y-3">
+      {urls.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+          {urls.map((u, i) => (
+            <div
+              key={`${u}-${i}`}
+              className="relative group aspect-[4/5] bg-[color:var(--color-bg)] border border-[color:var(--color-border)] overflow-hidden"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={u}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              <div className="absolute top-1 left-1 px-1.5 py-0.5 text-[10px] tracking-wider bg-[color:var(--color-bg)]/80 text-[color:var(--color-text-muted)]">
+                {i + 1}
+              </div>
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-colors flex items-end justify-center pb-2 opacity-0 group-hover:opacity-100">
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => moveAt(i, i - 1)}
+                    disabled={i === 0}
+                    className="px-2 py-1 text-xs bg-[color:var(--color-bg)]/90 disabled:opacity-30"
+                  >
+                    ←
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveAt(i, i + 1)}
+                    disabled={i === urls.length - 1}
+                    className="px-2 py-1 text-xs bg-[color:var(--color-bg)]/90 disabled:opacity-30"
+                  >
+                    →
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeAt(i)}
+                    className="px-2 py-1 text-xs bg-red-500/80 text-white"
+                  >
+                    削除
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2 flex-wrap items-stretch">
+        <label className="px-4 py-2 border border-[color:var(--color-border)] hover:border-[color:var(--color-gold)] text-xs tracking-wider cursor-pointer">
+          ファイルから追加
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFiles}
+          />
+        </label>
+        <input
+          type="url"
+          placeholder="または画像 URL を貼り付け"
+          value={urlInput}
+          onChange={(e) => setUrlInput(e.target.value)}
+          className={`${inputCls} flex-1 min-w-0`}
+        />
+        <button
+          type="button"
+          onClick={addUrl}
+          className="px-4 py-2 border border-[color:var(--color-border)] hover:border-[color:var(--color-gold)] text-xs tracking-wider"
+        >
+          追加
+        </button>
+      </div>
+      {uploadCount > 0 && (
+        <p className="text-xs text-[color:var(--color-text-muted)]">
+          {uploadCount} 件アップロード中…
+        </p>
+      )}
+      {uploadError && (
+        <p className="text-xs text-red-400">{uploadError}</p>
+      )}
+    </div>
   );
 }

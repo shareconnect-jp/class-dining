@@ -34,6 +34,7 @@ export const restaurantFormSchema = z.object({
   tiktok_url: z.string().url().optional().or(z.literal("")),
   line_url: z.string().url().optional().or(z.literal("")),
   main_image_url: z.string().url().optional().or(z.literal("")),
+  gallery_image_urls: z.array(z.string().url()).default([]),
   private_room: z.boolean().default(false),
   vip_available: z.boolean().default(false),
   business_trip_friendly: z.boolean().default(false),

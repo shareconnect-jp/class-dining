@@ -21,8 +21,13 @@ export async function createRestaurant(formData: FormData) {
   }
 
   const raw = Object.fromEntries(formData.entries());
+  // gallery_image_urls は同名 hidden input が複数並ぶので getAll で配列にする
+  const gallery_image_urls = formData
+    .getAll("gallery_image_urls")
+    .filter((v): v is string => typeof v === "string" && v.length > 0);
   const parsed = restaurantFormSchema.safeParse({
     ...raw,
+    gallery_image_urls,
     private_room: raw.private_room === "on",
     vip_available: raw.vip_available === "on",
     business_trip_friendly: raw.business_trip_friendly === "on",
@@ -61,8 +66,13 @@ export async function updateRestaurant(id: string, formData: FormData) {
   }
 
   const raw = Object.fromEntries(formData.entries());
+  // gallery_image_urls は同名 hidden input が複数並ぶので getAll で配列にする
+  const gallery_image_urls = formData
+    .getAll("gallery_image_urls")
+    .filter((v): v is string => typeof v === "string" && v.length > 0);
   const parsed = restaurantFormSchema.safeParse({
     ...raw,
+    gallery_image_urls,
     private_room: raw.private_room === "on",
     vip_available: raw.vip_available === "on",
     business_trip_friendly: raw.business_trip_friendly === "on",

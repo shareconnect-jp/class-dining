@@ -11,13 +11,14 @@ export async function generateMetadata(props: PageProps<"/restaurants/[slug]">) 
   const { slug } = await props.params;
   const r = await fetchRestaurantBySlug(slug);
   if (!r) return { title: "店舗が見つかりません" };
+  const og = r.main_image_url || r.gallery_image_urls?.[0];
   return {
     title: r.name,
     description: r.description ?? undefined,
     openGraph: {
       title: r.name,
       description: r.description ?? undefined,
-      images: r.main_image_url ? [r.main_image_url] : [],
+      images: og ? [og] : [],
     },
   };
 }
@@ -37,16 +38,27 @@ export default async function RestaurantDetailPage(
   const prefSlug = prefectureNameToSlug(r.prefecture ?? "");
   const tabelogUrl = buildTabelogVisitUrl(r);
 
+  // ギャラリー: main_image_url + gallery_image_urls を結合 (重複除去)
+  const gallery = Array.from(
+    new Set(
+      [r.main_image_url, ...(r.gallery_image_urls ?? [])].filter(
+        (u): u is string => typeof u === "string" && u.length > 0,
+      ),
+    ),
+  );
+  // ヒーローには 1 枚目を使うので、ギャラリーグリッドは 2 枚目以降
+  const galleryGrid = gallery.slice(1);
+
   return (
     <>
       <SiteHeader />
       <main>
         {/* HERO IMAGE — モバイルは縦長め、PCはワイド */}
         <div className="relative w-full aspect-[4/3] sm:aspect-[16/9] md:aspect-[16/7] bg-[color:var(--color-bg-soft)] overflow-hidden">
-          {r.main_image_url && (
+          {gallery[0] && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={r.main_image_url}
+              src={gallery[0]}
               alt={r.name}
               className="w-full h-full object-cover"
             />
@@ -65,6 +77,46 @@ export default async function RestaurantDetailPage(
             </h1>
           </div>
         </div>
+
+        {/* GALLERY — 2 枚目以降をマガジン風に大きく見せる */}
+        {galleryGrid.length > 0 && (
+          <section className="border-y border-[color:var(--color-border-soft)] bg-[color:var(--color-bg-soft)]/30">
+            <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-10 py-12 sm:py-16 md:py-20">
+              <div className="flex items-baseline justify-between mb-8 sm:mb-10">
+                <p className="text-xs tracking-[0.4em] text-[color:var(--color-gold)]">
+                  GALLERY
+                </p>
+                <p className="text-[10px] tracking-[0.3em] text-[color:var(--color-text-muted)]">
+                  {gallery.length} PHOTOS
+                </p>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
+                {galleryGrid.map((src, i) => {
+                  // 4 枚ごとに 1 枚を 2 倍サイズで配置してリズムを作る
+                  const isFeature = i % 5 === 0;
+                  return (
+                    <figure
+                      key={src}
+                      className={`relative overflow-hidden bg-[color:var(--color-bg-soft)] group ${
+                        isFeature
+                          ? "col-span-2 row-span-2 aspect-square"
+                          : "aspect-[4/5]"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={src}
+                        alt={`${r.name} の写真 ${i + 2}`}
+                        loading="lazy"
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      />
+                    </figure>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        )}
 
         <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-10 py-12 sm:py-16 md:py-20 grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-16">
           {/* 本文 */}

@@ -26,6 +26,9 @@ export const DUMMY_RESTAURANTS: Restaurant[] = [
     official_url: null,
     google_map_url: null,
     instagram_url: null,
+    x_url: null,
+    tiktok_url: null,
+    line_url: null,
     main_image_url:
       "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=1200&q=80",
     gallery_image_urls: [],
@@ -64,6 +67,9 @@ export const DUMMY_RESTAURANTS: Restaurant[] = [
     official_url: null,
     google_map_url: null,
     instagram_url: null,
+    x_url: null,
+    tiktok_url: null,
+    line_url: null,
     main_image_url:
       "https://images.unsplash.com/photo-1535473895227-bdecb20fb157?w=1200&q=80",
     gallery_image_urls: [],
@@ -102,6 +108,9 @@ export const DUMMY_RESTAURANTS: Restaurant[] = [
     official_url: null,
     google_map_url: null,
     instagram_url: null,
+    x_url: null,
+    tiktok_url: null,
+    line_url: null,
     main_image_url:
       "https://images.unsplash.com/photo-1553621042-f6e147245754?w=1200&q=80",
     gallery_image_urls: [],
@@ -140,6 +149,9 @@ export const DUMMY_RESTAURANTS: Restaurant[] = [
     official_url: null,
     google_map_url: null,
     instagram_url: null,
+    x_url: null,
+    tiktok_url: null,
+    line_url: null,
     main_image_url:
       "https://images.unsplash.com/photo-1544025162-d76694265947?w=1200&q=80",
     gallery_image_urls: [],
@@ -178,6 +190,9 @@ export const DUMMY_RESTAURANTS: Restaurant[] = [
     official_url: null,
     google_map_url: null,
     instagram_url: null,
+    x_url: null,
+    tiktok_url: null,
+    line_url: null,
     main_image_url:
       "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=1200&q=80",
     gallery_image_urls: [],

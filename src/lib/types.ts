@@ -20,6 +20,9 @@ export type Restaurant = {
   official_url: string | null;
   google_map_url: string | null;
   instagram_url: string | null;
+  x_url: string | null;
+  tiktok_url: string | null;
+  line_url: string | null;
   main_image_url: string | null;
   gallery_image_urls: string[];
   private_room: boolean;

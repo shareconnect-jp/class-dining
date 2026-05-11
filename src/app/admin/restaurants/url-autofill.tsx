@@ -23,6 +23,9 @@ export type AutofillFieldKey =
   | "official_url"
   | "google_map_url"
   | "instagram_url"
+  | "x_url"
+  | "tiktok_url"
+  | "line_url"
   | "main_image_url";
 
 export const AUTOFILL_FIELD_LABELS: Record<AutofillFieldKey, string> = {
@@ -44,20 +47,34 @@ export const AUTOFILL_FIELD_LABELS: Record<AutofillFieldKey, string> = {
   official_url: "公式サイト",
   google_map_url: "Google Map URL",
   instagram_url: "Instagram URL",
+  x_url: "X (Twitter) URL",
+  tiktok_url: "TikTok URL",
+  line_url: "LINE 公式 URL",
   main_image_url: "メイン画像 URL",
 };
 
 export type AutofillSnapshot = Partial<Record<AutofillFieldKey, string | number>>;
 
+type ApiSource = "tabelog" | "google_maps" | "instagram" | "x" | "tiktok" | "line";
+
 type ScrapeApiResponse =
   | {
       ok: true;
-      source: "tabelog" | "google_maps" | "instagram";
+      source: ApiSource;
       data: Record<string, unknown>;
       apply: RestaurantFormApply;
       warnings?: string[];
     }
   | { ok: false; code: string; error: string };
+
+const SOURCE_LABEL: Record<ApiSource, string> = {
+  tabelog: "食べログ",
+  google_maps: "Google Places",
+  instagram: "Instagram",
+  x: "X (Twitter)",
+  tiktok: "TikTok",
+  line: "LINE 公式",
+};
 
 type Props = {
   currentValues: Record<AutofillFieldKey, string>;
@@ -84,6 +101,9 @@ const FIELD_ORDER: AutofillFieldKey[] = [
   "official_url",
   "google_map_url",
   "instagram_url",
+  "x_url",
+  "tiktok_url",
+  "line_url",
   "main_image_url",
 ];
 
@@ -117,9 +137,7 @@ export function UrlAutofillSection({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [snapshot, setSnapshot] = useState<AutofillSnapshot | null>(null);
-  const [source, setSource] = useState<
-    "tabelog" | "google_maps" | "instagram" | null
-  >(null);
+  const [source, setSource] = useState<ApiSource | null>(null);
   const [selected, setSelected] = useState<Set<AutofillFieldKey>>(new Set());
 
   const availableKeys = useMemo<AutofillFieldKey[]>(() => {
@@ -210,7 +228,7 @@ export function UrlAutofillSection({
           URL から自動入力
         </h3>
         <p className="text-xs text-[color:var(--color-text-muted)] leading-relaxed">
-          食べログ または Google マップの店舗 URL を貼り付けると、店名・住所・電話番号などをまとめて取得します。取得結果は下書きとして反映されるので、保存前に必ず内容を確認してください。
+          食べログ / Google マップ / Instagram / X / TikTok / LINE 公式 の店舗 URL を貼り付けると、可能な範囲で店名・住所・電話番号などを取得します。SNS 系は og:* が出ない場合もあるので、リンクだけ反映されることがあります。保存前に必ず内容を確認してください。
         </p>
       </div>
 
@@ -219,7 +237,7 @@ export function UrlAutofillSection({
           type="url"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="食べログ / Google マップ / Instagram の店舗 URL"
+          placeholder="食べログ / Google マップ / Instagram / X / TikTok / LINE 公式 の URL"
           className="flex-1 px-3 py-2.5 bg-[color:var(--color-bg)] border border-[color:var(--color-border)] focus:border-[color:var(--color-gold)] outline-none text-sm"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -249,11 +267,7 @@ export function UrlAutofillSection({
               SOURCE:
             </span>
             <span className="text-[color:var(--color-gold)] tracking-[0.2em]">
-              {source === "tabelog"
-                ? "食べログ"
-                : source === "google_maps"
-                  ? "Google Places"
-                  : "Instagram"}
+              {source ? SOURCE_LABEL[source] : ""}
             </span>
             <span className="ml-auto flex gap-3">
               <button

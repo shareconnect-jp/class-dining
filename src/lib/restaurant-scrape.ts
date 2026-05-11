@@ -47,10 +47,18 @@ export type ScrapeErrorCode =
   | "rate_limited"
   | "timeout";
 
+export type ScrapeSource =
+  | "tabelog"
+  | "google_maps"
+  | "instagram"
+  | "x"
+  | "tiktok"
+  | "line";
+
 export type RestaurantScrapeResult =
   | {
       ok: true;
-      source: "tabelog" | "google_maps" | "instagram";
+      source: ScrapeSource;
       data: RestaurantScrapeData;
       warnings?: string[];
     }
@@ -132,7 +140,10 @@ export type UrlSource =
   | "tabelog"
   | "google_maps_long"
   | "google_maps_short"
-  | "instagram";
+  | "instagram"
+  | "x"
+  | "tiktok"
+  | "line";
 
 export function detectUrlSource(input: string): UrlSource | null {
   let host: string;
@@ -145,6 +156,23 @@ export function detectUrlSource(input: string): UrlSource | null {
   if (host === "maps.app.goo.gl" || host === "goo.gl") return "google_maps_short";
   if (host === "instagram.com" || host.endsWith(".instagram.com")) {
     return "instagram";
+  }
+  if (
+    host === "x.com" ||
+    host.endsWith(".x.com") ||
+    host === "twitter.com" ||
+    host.endsWith(".twitter.com")
+  ) {
+    return "x";
+  }
+  if (host === "tiktok.com" || host.endsWith(".tiktok.com")) return "tiktok";
+  if (
+    host === "lin.ee" ||
+    host === "line.me" ||
+    host.endsWith(".line.me") ||
+    host === "page.line.me"
+  ) {
+    return "line";
   }
   if (host === "google.com" || host.endsWith(".google.com")) {
     // /maps/ 配下のみ許可
@@ -744,64 +772,48 @@ async function scrapeGoogleMaps(
 }
 
 // ============================================================
-// INSTAGRAM (best-effort)
+// SNS (best-effort og:* only)
 // ============================================================
 /**
- * Instagram は公式 API がアカウント所有者向けに限定されており、
- * 公開プロフィールページもログイン壁が出やすい。ここでは og:* メタタグだけを
- * best-effort で抽出し、取れた値だけを warning と共に返す。
- * 取れなくても instagram_url 自体はフォームに反映できるようにする。
+ * Instagram / X / TikTok / LINE は公式 API が事実上使えない or 自社アカウント限定。
+ * いずれも公開ページの og:* メタタグだけを best-effort で抽出する。
+ * 取得できなくても <sns>_url 自体はフォームに反映できるよう ok 扱いで返す。
  */
-function cleanInstagramTitle(title: string): string {
-  // 例: "Sushi Takumi Ginza (@sushi_takumi_ginza) • Instagram photos and videos"
-  //     -> "Sushi Takumi Ginza"
-  return title
-    .replace(/\s*[•·|]\s*Instagram.*$/i, "")
-    .replace(/\s*on Instagram.*$/i, "")
-    .replace(/\s*\(@[^)]+\)\s*$/, "")
-    .replace(/^@[\w._]+\s*[-—]\s*/, "")
-    .trim();
-}
 
-function extractInstagramHandle(url: string): string | undefined {
-  try {
-    const u = new URL(url);
-    const seg = u.pathname.split("/").filter(Boolean);
-    if (seg.length === 0) return undefined;
-    // /<handle>/  or  /<handle>/?...
-    // p/<post> / reel/<id> / stories は handle ではないのでスキップ
-    const first = seg[0];
-    if (["p", "reel", "explore", "stories", "tv"].includes(first)) {
-      return undefined;
-    }
-    return first.toLowerCase();
-  } catch {
-    return undefined;
-  }
-}
-
-function normalizeInstagramUrl(url: string): string {
-  // クエリ・フラグメントを落として末尾スラッシュを揃える (例: ?igsh=... を除去)
+function stripQueryAndHash(url: string): string {
   try {
     const u = new URL(url);
     u.search = "";
     u.hash = "";
     let path = u.pathname;
-    if (!path.endsWith("/")) path = `${path}/`;
+    if (path !== "/" && !path.endsWith("/")) path = `${path}/`;
     return `${u.protocol}//${u.host}${path}`;
   } catch {
     return url;
   }
 }
 
-async function scrapeInstagram(
-  inputUrl: string,
-): Promise<RestaurantScrapeResult> {
-  const url = normalizeInstagramUrl(inputUrl);
-  const handle = extractInstagramHandle(url);
-  const data: RestaurantScrapeData = { source_url: url };
-  const warnings: string[] = [];
+function extractFirstPathSegment(url: string): string | undefined {
+  try {
+    const seg = new URL(url).pathname.split("/").filter(Boolean);
+    return seg[0]?.toLowerCase();
+  } catch {
+    return undefined;
+  }
+}
 
+type OgTags = {
+  title?: string;
+  description?: string;
+  image?: string;
+};
+
+async function fetchOgTags(
+  url: string,
+): Promise<
+  | { ok: true; tags: OgTags; finalUrl: string }
+  | { ok: false; reason: string }
+> {
   let res: Response;
   try {
     res = await fetchWithTimeout(url, {
@@ -816,68 +828,179 @@ async function scrapeInstagram(
     });
   } catch (e) {
     if (e instanceof Error && e.name === "AbortError") {
-      // 失敗してもリンクは登録できるよう ok 扱いで instagram_url だけ返す
-      warnings.push("Instagram の取得がタイムアウトしました (リンクのみ登録可能)");
-      return { ok: true, source: "instagram", data, warnings };
+      return { ok: false, reason: "取得がタイムアウトしました" };
     }
-    warnings.push(
-      `Instagram の取得に失敗しました: ${e instanceof Error ? e.message : "unknown"} (リンクのみ登録可能)`,
-    );
-    return { ok: true, source: "instagram", data, warnings };
+    return {
+      ok: false,
+      reason: e instanceof Error ? e.message : "fetch failed",
+    };
   }
 
   if (!res.ok) {
-    warnings.push(
-      `Instagram から HTTP ${res.status} が返りました (ログイン壁の可能性。リンクのみ登録可能)`,
-    );
-    return { ok: true, source: "instagram", data, warnings };
+    return { ok: false, reason: `HTTP ${res.status}` };
   }
 
   let html: string;
   try {
     html = await res.text();
   } catch {
-    warnings.push("Instagram のレスポンス本文を読めませんでした (リンクのみ登録可能)");
-    return { ok: true, source: "instagram", data, warnings };
+    return { ok: false, reason: "レスポンス本文を読めませんでした" };
   }
 
   const $ = cheerio.load(html);
-  const ogTitle = $('meta[property="og:title"]').attr("content") ?? undefined;
-  const ogDesc = $('meta[property="og:description"]').attr("content") ?? undefined;
-  const ogImage = $('meta[property="og:image"]').attr("content") ?? undefined;
+  return {
+    ok: true,
+    finalUrl: res.url || url,
+    tags: {
+      title:
+        $('meta[property="og:title"]').attr("content") ??
+        $('meta[name="twitter:title"]').attr("content") ??
+        $("title").first().text() ??
+        undefined,
+      description:
+        $('meta[property="og:description"]').attr("content") ??
+        $('meta[name="twitter:description"]').attr("content") ??
+        $('meta[name="description"]').attr("content") ??
+        undefined,
+      image:
+        $('meta[property="og:image"]').attr("content") ??
+        $('meta[name="twitter:image"]').attr("content") ??
+        undefined,
+    },
+  };
+}
 
-  if (ogTitle) {
-    const cleaned = cleanInstagramTitle(ogTitle);
-    if (cleaned && cleaned !== "Instagram") data.name = cleaned;
-  } else if (handle) {
-    // フォールバック: ハンドル名から推定 (admin が手で直す前提)
-    data.name = handle;
+type SnsSpec = {
+  source: "instagram" | "x" | "tiktok" | "line";
+  label: string;
+  cleanTitle: (title: string) => string;
+  // ハンドル抽出 (URL から /xxx を取り出し)
+  extractHandle?: (url: string) => string | undefined;
+  // 説明文の末尾フラグメント除去
+  cleanDescription?: (desc: string) => string;
+};
+
+const INSTAGRAM_SPEC: SnsSpec = {
+  source: "instagram",
+  label: "Instagram",
+  cleanTitle: (t) =>
+    t
+      .replace(/\s*[•·|]\s*Instagram.*$/i, "")
+      .replace(/\s*on Instagram.*$/i, "")
+      .replace(/\s*\(@[^)]+\)\s*$/, "")
+      .replace(/^@[\w._]+\s*[-—]\s*/, "")
+      .trim(),
+  extractHandle: (url) => {
+    const seg = extractFirstPathSegment(url);
+    if (!seg || ["p", "reel", "explore", "stories", "tv"].includes(seg))
+      return undefined;
+    return seg;
+  },
+  cleanDescription: (d) => d.replace(/\s*See Instagram.*$/i, "").trim(),
+};
+
+const X_SPEC: SnsSpec = {
+  source: "x",
+  label: "X (Twitter)",
+  // 例: "Name (@handle) / X" or "Name on X: \"...\""
+  cleanTitle: (t) =>
+    t
+      .replace(/\s*\/\s*X$/i, "")
+      .replace(/\s*\(@[^)]+\)\s*$/, "")
+      .replace(/\s+on\s+X:?.*$/i, "")
+      .replace(/\s+\/\s+Twitter$/i, "")
+      .trim(),
+  extractHandle: (url) => {
+    const seg = extractFirstPathSegment(url);
+    if (!seg || ["i", "search", "home", "explore", "intent"].includes(seg))
+      return undefined;
+    return seg;
+  },
+};
+
+const TIKTOK_SPEC: SnsSpec = {
+  source: "tiktok",
+  label: "TikTok",
+  // 例: "Name (@handle) | TikTok"
+  cleanTitle: (t) =>
+    t
+      .replace(/\s*\|\s*TikTok.*$/i, "")
+      .replace(/\s*\(@[^)]+\)\s*$/, "")
+      .trim(),
+  extractHandle: (url) => {
+    const seg = extractFirstPathSegment(url);
+    if (!seg) return undefined;
+    return seg.startsWith("@") ? seg.slice(1) : seg;
+  },
+};
+
+const LINE_SPEC: SnsSpec = {
+  source: "line",
+  label: "LINE 公式",
+  // LINE は og がほぼ出ない事を覚悟したクリーンナップ
+  cleanTitle: (t) => t.replace(/\s*\|\s*LINE.*$/i, "").trim(),
+};
+
+async function scrapeOgSns(
+  inputUrl: string,
+  spec: SnsSpec,
+): Promise<RestaurantScrapeResult> {
+  const url = stripQueryAndHash(inputUrl);
+  const data: RestaurantScrapeData = { source_url: url };
+  const warnings: string[] = [];
+
+  const result = await fetchOgTags(url);
+  if (!result.ok) {
     warnings.push(
-      "Instagram の og:title を取得できなかったため、ユーザー名をそのまま店名候補にしました",
+      `${spec.label} の取得に失敗しました: ${result.reason} (リンクのみ登録可能)`,
     );
+    return { ok: true, source: spec.source, data, warnings };
   }
 
-  if (ogImage) data.image_url = ogImage;
-  if (ogDesc) {
-    // 例: "1,234 Followers, ... - See Instagram photos and videos from @handle"
-    // 説明文として使えそうな部分だけ抜き出す
-    const trimmed = ogDesc.replace(/\s*See Instagram.*$/i, "").trim();
-    if (trimmed && /[一-龯ぁ-んァ-ヶa-zA-Z]/.test(trimmed)) {
-      data.category = trimmed;
+  // LINE 短縮等のリダイレクト後の最終 URL を保存
+  if (result.finalUrl && result.finalUrl !== url) {
+    data.source_url = stripQueryAndHash(result.finalUrl);
+  }
+
+  const { title, description, image } = result.tags;
+
+  if (title) {
+    const cleaned = spec.cleanTitle(title);
+    if (cleaned && cleaned.toLowerCase() !== spec.label.toLowerCase()) {
+      data.name = cleaned;
+    }
+  }
+  if (!data.name && spec.extractHandle) {
+    const handle = spec.extractHandle(url);
+    if (handle) {
+      data.name = handle;
+      warnings.push(
+        `${spec.label} の og:title を取得できなかったため、ユーザー名をそのまま店名候補にしました`,
+      );
+    }
+  }
+
+  if (image) data.image_url = image;
+  if (description) {
+    const cleaned = spec.cleanDescription
+      ? spec.cleanDescription(description)
+      : description.trim();
+    if (cleaned && /[一-龯ぁ-んァ-ヶa-zA-Z]/.test(cleaned)) {
+      data.category = cleaned;
     }
   }
 
   if (!data.name && !data.image_url) {
     warnings.push(
-      "Instagram から取得できる情報がありませんでした (ログイン壁の可能性。リンクのみ登録可能)",
+      `${spec.label} から取得できる情報がありませんでした (リンクのみ登録可能)`,
     );
   } else {
     warnings.push(
-      "Instagram から取得した情報は限定的です。店名・住所・電話などは手入力で補完してください",
+      `${spec.label} から取得した情報は限定的です。店名・住所・電話などは手入力で補完してください`,
     );
   }
 
-  return { ok: true, source: "instagram", data, warnings };
+  return { ok: true, source: spec.source, data, warnings };
 }
 
 // ============================================================
@@ -901,7 +1024,10 @@ export async function scrapeRestaurantUrl(
   }
 
   if (source === "tabelog") return scrapeTabelogV2(url);
-  if (source === "instagram") return scrapeInstagram(url);
+  if (source === "instagram") return scrapeOgSns(url, INSTAGRAM_SPEC);
+  if (source === "x") return scrapeOgSns(url, X_SPEC);
+  if (source === "tiktok") return scrapeOgSns(url, TIKTOK_SPEC);
+  if (source === "line") return scrapeOgSns(url, LINE_SPEC);
   return scrapeGoogleMaps(url, source);
 }
 
@@ -921,6 +1047,9 @@ export type RestaurantFormApply = Partial<
     | "tabelog_url"
     | "google_map_url"
     | "instagram_url"
+    | "x_url"
+    | "tiktok_url"
+    | "line_url"
     | "price_min"
     | "price_max"
   >
@@ -964,9 +1093,10 @@ export function toFormApply(
 
   if (result.source === "tabelog") apply.tabelog_url = inputUrl;
   if (result.source === "google_maps") apply.google_map_url = inputUrl;
-  if (result.source === "instagram") {
-    // 正規化後の URL を反映 (?igsh= 等を除去)
-    apply.instagram_url = d.source_url ?? inputUrl;
-  }
+  // SNS は短縮 URL の展開後 (?igsh= など除去後) の正規化 URL を反映
+  if (result.source === "instagram") apply.instagram_url = d.source_url ?? inputUrl;
+  if (result.source === "x") apply.x_url = d.source_url ?? inputUrl;
+  if (result.source === "tiktok") apply.tiktok_url = d.source_url ?? inputUrl;
+  if (result.source === "line") apply.line_url = d.source_url ?? inputUrl;
   return apply;
 }

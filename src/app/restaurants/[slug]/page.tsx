@@ -162,6 +162,13 @@ export default async function RestaurantDetailPage(
                 {r.instagram_url && (
                   <ExternalLink href={r.instagram_url} label="Instagram" />
                 )}
+                {r.x_url && <ExternalLink href={r.x_url} label="X (Twitter)" />}
+                {r.tiktok_url && (
+                  <ExternalLink href={r.tiktok_url} label="TikTok" />
+                )}
+                {r.line_url && (
+                  <ExternalLink href={r.line_url} label="LINE 公式" />
+                )}
               </div>
             </div>
 

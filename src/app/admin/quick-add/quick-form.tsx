@@ -8,7 +8,7 @@ import { generateSlugFromName } from "@/lib/slug";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import {
   autoFillAction,
-  fetchTabelogInfoAction,
+  fetchRestaurantInfoAction,
   saveQuickRestaurant,
 } from "./actions";
 
@@ -30,6 +30,15 @@ export function QuickAddForm() {
 
   // 取材入力
   const [tabelogUrl, setTabelogUrl] = useState("");
+  const [sourceUrlKind, setSourceUrlKind] = useState<
+    | "tabelog"
+    | "google_maps"
+    | "instagram"
+    | "x"
+    | "tiktok"
+    | "line"
+    | "unknown"
+  >("unknown");
   const [editorialNote, setEditorialNote] = useState("");
   const [media, setMedia] = useState<UploadedMedia[]>([]);
   const [mainImageUrl, setMainImageUrl] = useState("");
@@ -82,20 +91,26 @@ export function QuickAddForm() {
     setScraping(true);
     setScrapeError(null);
     try {
-      const res = await fetchTabelogInfoAction(tabelogUrl.trim());
+      const res = await fetchRestaurantInfoAction(tabelogUrl.trim());
       if (!res.ok) {
         setScrapeError(res.error ?? "取得失敗");
         return;
       }
-      if (res.name && !name) setName(res.name);
-      if (res.area && !area) setArea(res.area);
-      if (res.prefecture && !prefecture) setPrefecture(res.prefecture);
-      if (res.genreSlug && !genre) setGenre(res.genreSlug);
-      if (res.address && !address) setAddress(res.address);
-      if (res.mainImage && !mainImageUrl) setMainImageUrl(res.mainImage);
-      if (res.description) setTabelogDescription(res.description);
-      if (res.name && !slug) {
-        setSlug(generateSlugFromName(res.name, res.area));
+      setSourceUrlKind(res.source);
+      const d = res.data;
+      if (d.name && !name) setName(d.name);
+      if (d.area && !area) setArea(d.area);
+      if (d.prefecture && !prefecture) setPrefecture(d.prefecture);
+      if (d.genre_slug && !genre) setGenre(d.genre_slug);
+      if (d.address && !address) setAddress(d.address);
+      if (d.image_url && !mainImageUrl) setMainImageUrl(d.image_url);
+      if (d.category) setTabelogDescription(d.category);
+      if (d.name && !slug) {
+        setSlug(generateSlugFromName(d.name, d.area));
+      }
+      // SNS 系で og:* がほぼ取れない場合の通知
+      if (res.warnings && res.warnings.length > 0 && !d.name && !d.address) {
+        setScrapeError(res.warnings[0]);
       }
     } finally {
       setScraping(false);
@@ -204,6 +219,26 @@ export function QuickAddForm() {
       .filter((m) => m.kind === "video" && m.url)
       .map((m) => m.url);
 
+    // 入力 URL の種別に応じて正しいカラムに振り分け
+    const trimmed = tabelogUrl.trim();
+    const urlPayload: Partial<{
+      tabelog_url: string;
+      google_map_url: string;
+      instagram_url: string;
+      x_url: string;
+      tiktok_url: string;
+      line_url: string;
+    }> = {};
+    if (trimmed) {
+      const k = sourceUrlKind;
+      if (k === "google_maps") urlPayload.google_map_url = trimmed;
+      else if (k === "instagram") urlPayload.instagram_url = trimmed;
+      else if (k === "x") urlPayload.x_url = trimmed;
+      else if (k === "tiktok") urlPayload.tiktok_url = trimmed;
+      else if (k === "line") urlPayload.line_url = trimmed;
+      else urlPayload.tabelog_url = trimmed; // tabelog or unknown
+    }
+
     startTransition(async () => {
       const res = await saveQuickRestaurant({
         name,
@@ -215,7 +250,7 @@ export function QuickAddForm() {
         address,
         price_min: typeof priceMin === "number" ? priceMin : null,
         price_max: typeof priceMax === "number" ? priceMax : null,
-        tabelog_url: tabelogUrl,
+        ...urlPayload,
         main_image_url: mainImageUrl,
         gallery_image_urls: galleryImages,
         gallery_video_urls: galleryVideos,
@@ -368,10 +403,10 @@ export function QuickAddForm() {
               </div>
             )}
 
-            {/* 食べログURL */}
+            {/* 店舗 URL (食べログ / Google マップ / SNS) */}
             <div className="qa-fade-up mb-6">
               <label className="block text-[10px] tracking-[0.4em] text-[color:var(--color-text-muted)] mb-2 uppercase">
-                Tabelog URL (optional)
+                Source URL (optional)
               </label>
               <div className="flex gap-2 items-end">
                 <input
@@ -379,7 +414,7 @@ export function QuickAddForm() {
                   inputMode="url"
                   value={tabelogUrl}
                   onChange={(e) => setTabelogUrl(e.target.value)}
-                  placeholder="https://tabelog.com/..."
+                  placeholder="食べログ / Google マップ / Instagram / X / TikTok / LINE"
                   className="qa-input qa-input-sans flex-1"
                 />
               </div>

@@ -38,6 +38,9 @@ type AutofillableState = {
   official_url: string;
   google_map_url: string;
   instagram_url: string;
+  x_url: string;
+  tiktok_url: string;
+  line_url: string;
   main_image_url: string;
 };
 
@@ -66,6 +69,9 @@ function initialState(initial: Restaurant | undefined): AutofillableState {
     official_url: initial?.official_url ?? "",
     google_map_url: initial?.google_map_url ?? "",
     instagram_url: initial?.instagram_url ?? "",
+    x_url: initial?.x_url ?? "",
+    tiktok_url: initial?.tiktok_url ?? "",
+    line_url: initial?.line_url ?? "",
     main_image_url: initial?.main_image_url ?? "",
   };
 }
@@ -349,6 +355,38 @@ export function RestaurantForm({ initial }: Props) {
             className={inputCls}
           />
         </Field>
+        <div className="grid grid-cols-3 gap-4">
+          <Field label="X (Twitter) URL">
+            <input
+              type="url"
+              name="x_url"
+              value={values.x_url}
+              onChange={(e) => setField("x_url", e.target.value)}
+              placeholder="https://x.com/your_shop"
+              className={inputCls}
+            />
+          </Field>
+          <Field label="TikTok URL">
+            <input
+              type="url"
+              name="tiktok_url"
+              value={values.tiktok_url}
+              onChange={(e) => setField("tiktok_url", e.target.value)}
+              placeholder="https://www.tiktok.com/@your_shop"
+              className={inputCls}
+            />
+          </Field>
+          <Field label="LINE 公式 URL">
+            <input
+              type="url"
+              name="line_url"
+              value={values.line_url}
+              onChange={(e) => setField("line_url", e.target.value)}
+              placeholder="https://lin.ee/xxxxx"
+              className={inputCls}
+            />
+          </Field>
+        </div>
         <Field label="メイン画像 URL">
           <input
             type="url"

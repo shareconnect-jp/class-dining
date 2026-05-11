@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { scrapeTabelog } from "@/lib/tabelog-scrape";
+import { scrapeRestaurantUrl } from "@/lib/restaurant-scrape";
 import {
   generateDescription,
   inferScores,
@@ -18,7 +19,16 @@ function isSupabaseConfigured(): boolean {
 }
 
 export async function fetchTabelogInfoAction(url: string) {
+  // 旧呼び出し互換: tabelog 専用の従来関数を残す
   return scrapeTabelog(url);
+}
+
+/**
+ * 統合 URL スクレイパ。tabelog / google maps / instagram / x / tiktok / line 対応。
+ * quick-add の STEP1 から呼び出される。
+ */
+export async function fetchRestaurantInfoAction(url: string) {
+  return scrapeRestaurantUrl(url);
 }
 
 export type AutoFillResult = {
@@ -61,6 +71,11 @@ type SavePayload = {
   price_min?: number | null;
   price_max?: number | null;
   tabelog_url?: string;
+  google_map_url?: string;
+  instagram_url?: string;
+  x_url?: string;
+  tiktok_url?: string;
+  line_url?: string;
   main_image_url?: string;
   gallery_image_urls?: string[];
   gallery_video_urls?: string[];
@@ -101,6 +116,11 @@ export async function saveQuickRestaurant(payload: SavePayload) {
       price_min: payload.price_min ?? null,
       price_max: payload.price_max ?? null,
       tabelog_url: payload.tabelog_url || null,
+      google_map_url: payload.google_map_url || null,
+      instagram_url: payload.instagram_url || null,
+      x_url: payload.x_url || null,
+      tiktok_url: payload.tiktok_url || null,
+      line_url: payload.line_url || null,
       main_image_url: payload.main_image_url || null,
       gallery_image_urls: payload.gallery_image_urls ?? [],
       gallery_video_urls: payload.gallery_video_urls ?? [],

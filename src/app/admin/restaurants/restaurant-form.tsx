@@ -120,12 +120,30 @@ export function RestaurantForm({ initial }: Props) {
     setValues((prev) => {
       const next = { ...prev };
       for (const key of selectedKeys) {
+        if (key === "gallery_image_urls") continue; // 配列は別途
         const v = snapshot[key];
-        if (v == null) continue;
-        next[key] = String(v);
+        if (v == null || Array.isArray(v)) continue;
+        // AutofillableState の全フィールドは string 型
+        (next as Record<string, string>)[key] = String(v);
       }
       return next;
     });
+    if (selectedKeys.has("gallery_image_urls")) {
+      const v = snapshot.gallery_image_urls;
+      if (Array.isArray(v) && v.length > 0) {
+        setGalleryUrls((prev) => {
+          const set = new Set(prev);
+          const merged = [...prev];
+          for (const u of v) {
+            if (typeof u === "string" && u.length > 0 && !set.has(u)) {
+              merged.push(u);
+              set.add(u);
+            }
+          }
+          return merged;
+        });
+      }
+    }
   }
 
   function setField<K extends keyof AutofillableState>(

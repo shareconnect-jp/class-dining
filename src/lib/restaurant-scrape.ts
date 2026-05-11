@@ -35,6 +35,7 @@ export type RestaurantScrapeData = Partial<{
   price_min: number;
   price_max: number;
   image_url: string;
+  gallery_image_urls: string[];
   rating: number;
   source_url: string;
 }>;
@@ -385,8 +386,14 @@ async function scrapeTabelogV2(url: string): Promise<RestaurantScrapeResult> {
       }
     }
     if (typeof ld.image === "string") data.image_url = data.image_url ?? ld.image;
-    else if (Array.isArray(ld.image) && ld.image[0])
+    else if (Array.isArray(ld.image) && ld.image[0]) {
       data.image_url = data.image_url ?? ld.image[0];
+      // JSON-LD image 配列はキュレーション済みのことが多いのでギャラリーに採用
+      const arr = ld.image.filter(
+        (v): v is string => typeof v === "string" && v.length > 0,
+      );
+      if (arr.length > 0) data.gallery_image_urls = arr;
+    }
     if (ld.priceRange) {
       const parsed = parsePriceRange(ld.priceRange);
       Object.assign(data, parsed);
@@ -464,7 +471,68 @@ async function scrapeTabelogV2(url: string): Promise<RestaurantScrapeResult> {
     warnings.push("住所を取得できませんでした");
   }
 
+  // ---------- 写真一覧ページから追加でギャラリー画像を取得 ----------
+  // /dtlphotolst/ にメイン店舗ページとは別に大量の写真が並ぶ
+  try {
+    const photoListUrl = url.replace(/\/?$/, "/") + "dtlphotolst/";
+    const galleryFromList = await scrapeTabelogPhotoList(photoListUrl);
+    if (galleryFromList.length > 0) {
+      const merged = new Set<string>([
+        ...(data.gallery_image_urls ?? []),
+        ...galleryFromList,
+      ]);
+      data.gallery_image_urls = Array.from(merged);
+    }
+  } catch {
+    // best-effort: 写真一覧の取得に失敗してもメイン情報は返す
+  }
+
   return { ok: true, source: "tabelog", data, warnings };
+}
+
+/**
+ * 食べログの写真一覧ページから画像 URL を抽出する。
+ * tblg.k-img.com の CDN にホストされた写真だけを採用し、
+ * 88x88_square のような小さなサムネイルはより大きな size token に差し替える。
+ */
+async function scrapeTabelogPhotoList(photoListUrl: string): Promise<string[]> {
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(photoListUrl, {
+      headers: {
+        "User-Agent": UA,
+        "Accept-Language": "ja-JP,ja;q=0.9,en;q=0.8",
+      },
+      cache: "no-store",
+    });
+  } catch {
+    return [];
+  }
+  if (!res.ok) return [];
+  const html = await res.text();
+  const $ = cheerio.load(html);
+
+  const urls = new Set<string>();
+  $("img").each((_, el) => {
+    const $el = $(el);
+    const candidates = [
+      $el.attr("src"),
+      $el.attr("data-src"),
+      $el.attr("data-original"),
+    ].filter((v): v is string => typeof v === "string" && v.length > 0);
+    for (const raw of candidates) {
+      if (!/tblg\.k-img\.com\/.+\/restaurant\/images\/Rvw\//i.test(raw)) {
+        continue;
+      }
+      // サイズトークン (88x88_square_*, 150x150_square_*, etc.) を 640x640 に昇格
+      const upgraded = raw.replace(
+        /\/(?:88|100|110|150|220|320)x(?:88|100|110|150|220|320)_square_/i,
+        "/640x640_square_",
+      );
+      urls.add(upgraded);
+    }
+  });
+  return Array.from(urls).slice(0, 40); // 上限 40 枚
 }
 
 // ============================================================
@@ -759,10 +827,20 @@ async function scrapeGoogleMaps(
   data.category = cuisineTypes || data.category;
   data.genre_slug = inferGenreSlug(cuisineTypes, place.displayName?.text);
 
-  // 画像 URL は Photo media を 1 枚だけ展開
-  if (place.photos?.[0]?.name) {
-    const photoUri = await fetchPhotoUri(apiKey, place.photos[0].name);
-    if (photoUri) data.image_url = photoUri;
+  // 画像 URL: 最大 10 枚まで並列取得し、先頭をメイン、残りをギャラリーに
+  const photoNames = (place.photos ?? [])
+    .map((p) => p?.name)
+    .filter((n): n is string => typeof n === "string" && n.length > 0)
+    .slice(0, 10);
+  if (photoNames.length > 0) {
+    const photoUris = await Promise.all(
+      photoNames.map((n) => fetchPhotoUri(apiKey, n)),
+    );
+    const validUris = photoUris.filter(
+      (u): u is string => typeof u === "string" && u.length > 0,
+    );
+    if (validUris[0]) data.image_url = validUris[0];
+    if (validUris.length > 0) data.gallery_image_urls = validUris;
   }
 
   if (!data.name) warnings.push("Places から店舗名を取得できませんでした");
@@ -1061,6 +1139,7 @@ export type RestaurantFormApply = Partial<
   lat?: number;
   lng?: number;
   price_range?: string;
+  gallery_image_urls?: string[];
 };
 
 /**
@@ -1081,6 +1160,13 @@ export function toFormApply(
     apply.genre = d.genre_slug;
   }
   if (d.image_url) apply.main_image_url = d.image_url;
+  if (d.gallery_image_urls && d.gallery_image_urls.length > 0) {
+    // メイン画像と完全一致するものはギャラリーから除く
+    const main = d.image_url;
+    apply.gallery_image_urls = d.gallery_image_urls.filter(
+      (u) => u !== main,
+    );
+  }
   if (d.website) apply.official_url = d.website;
   if (d.price_min) apply.price_min = d.price_min;
   if (d.price_max) apply.price_max = d.price_max;

@@ -26,7 +26,8 @@ export type AutofillFieldKey =
   | "x_url"
   | "tiktok_url"
   | "line_url"
-  | "main_image_url";
+  | "main_image_url"
+  | "gallery_image_urls";
 
 export const AUTOFILL_FIELD_LABELS: Record<AutofillFieldKey, string> = {
   name: "店名",
@@ -51,9 +52,12 @@ export const AUTOFILL_FIELD_LABELS: Record<AutofillFieldKey, string> = {
   tiktok_url: "TikTok URL",
   line_url: "LINE 公式 URL",
   main_image_url: "メイン画像 URL",
+  gallery_image_urls: "ギャラリー写真",
 };
 
-export type AutofillSnapshot = Partial<Record<AutofillFieldKey, string | number>>;
+export type AutofillSnapshot = Partial<
+  Record<AutofillFieldKey, string | number | string[]>
+>;
 
 type ApiSource = "tabelog" | "google_maps" | "instagram" | "x" | "tiktok" | "line";
 
@@ -77,7 +81,7 @@ const SOURCE_LABEL: Record<ApiSource, string> = {
 };
 
 type Props = {
-  currentValues: Record<AutofillFieldKey, string>;
+  currentValues: Partial<Record<AutofillFieldKey, string>>;
   onApply: (snapshot: AutofillSnapshot, selected: Set<AutofillFieldKey>) => void;
   fieldLabels: Record<AutofillFieldKey, string>;
 };
@@ -105,6 +109,7 @@ const FIELD_ORDER: AutofillFieldKey[] = [
   "tiktok_url",
   "line_url",
   "main_image_url",
+  "gallery_image_urls",
 ];
 
 function applyToSnapshot(apply: RestaurantFormApply): AutofillSnapshot {
@@ -113,6 +118,10 @@ function applyToSnapshot(apply: RestaurantFormApply): AutofillSnapshot {
     if (v == null || v === "") continue;
     if (typeof v === "number" || typeof v === "string") {
       snap[k as AutofillFieldKey] = v;
+    } else if (Array.isArray(v) && v.length > 0) {
+      snap[k as AutofillFieldKey] = v.filter(
+        (u): u is string => typeof u === "string" && u.length > 0,
+      );
     }
   }
   return snap;
@@ -298,8 +307,13 @@ export function UrlAutofillSection({
           <div className="border border-[color:var(--color-border-soft)] divide-y divide-[color:var(--color-border-soft)]">
             {availableKeys.map((key) => {
               const newValue = snapshot[key];
+              const isArrayField = Array.isArray(newValue);
               const current = currentValues[key];
-              const willOverwrite = current && current !== "" && current !== String(newValue);
+              const willOverwrite =
+                !isArrayField &&
+                current &&
+                current !== "" &&
+                current !== String(newValue);
               return (
                 <label
                   key={key}
@@ -316,15 +330,46 @@ export function UrlAutofillSection({
                       <span className="text-xs tracking-wider text-[color:var(--color-text-muted)]">
                         {fieldLabels[key]}
                       </span>
+                      {isArrayField && Array.isArray(newValue) && (
+                        <span className="text-[10px] tracking-wider text-[color:var(--color-gold)] border border-[color:var(--color-gold)]/40 px-1.5 py-0.5">
+                          {newValue.length} 枚を追加
+                        </span>
+                      )}
                       {willOverwrite && (
                         <span className="text-[10px] tracking-wider text-amber-500 border border-amber-500/40 px-1.5 py-0.5">
                           上書き
                         </span>
                       )}
                     </div>
-                    <div className="text-sm break-words whitespace-pre-wrap mt-0.5">
-                      {newValue !== undefined ? displayValue(key, newValue) : "—"}
-                    </div>
+                    {isArrayField && Array.isArray(newValue) ? (
+                      <div className="mt-2 grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-1">
+                        {newValue.slice(0, 16).map((u, i) => (
+                          <div
+                            key={`${u}-${i}`}
+                            className="relative aspect-square overflow-hidden bg-[color:var(--color-bg)] border border-[color:var(--color-border-soft)]"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={u}
+                              alt=""
+                              loading="lazy"
+                              className="absolute inset-0 w-full h-full object-cover"
+                            />
+                          </div>
+                        ))}
+                        {newValue.length > 16 && (
+                          <div className="relative aspect-square flex items-center justify-center text-xs text-[color:var(--color-text-muted)] bg-[color:var(--color-bg)] border border-[color:var(--color-border-soft)]">
+                            +{newValue.length - 16}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-sm break-words whitespace-pre-wrap mt-0.5">
+                        {newValue !== undefined
+                          ? displayValue(key, newValue as string | number)
+                          : "—"}
+                      </div>
+                    )}
                     {willOverwrite && (
                       <div className="text-[11px] text-[color:var(--color-text-faded)] mt-1 line-through break-words">
                         {current}

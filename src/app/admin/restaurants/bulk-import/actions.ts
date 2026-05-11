@@ -56,10 +56,12 @@ async function ensureUniqueSlug(
 
 export async function bulkImportRestaurants(
   rows: BulkImportRow[],
+  options?: { publish?: boolean },
 ): Promise<
   | { ok: true; results: BulkImportRowResult[] }
   | { ok: false; error: string }
 > {
+  const publish = options?.publish ?? false;
   if (!isSupabaseConfigured()) {
     return { ok: false, error: "Supabase が未設定です" };
   }
@@ -177,7 +179,7 @@ export async function bulkImportRestaurants(
         conversation_score: 4,
         access_score: 4,
         customer_types: [],
-        is_published: false,
+        is_published: publish,
       };
 
       const { data: inserted, error: insErr } = await supabase

@@ -150,3 +150,41 @@ export async function backfillAllGalleries(): Promise<
   revalidatePath("/restaurants");
   return { ok: true, results };
 }
+
+/**
+ * 下書き (is_published=false) の店舗をまとめて公開する。
+ * 一括登録した直後に「公開ページに出てこない」となる事故を防ぐためのヘルパ。
+ */
+export async function publishAllDrafts(): Promise<
+  | { ok: true; published: number; names: string[] }
+  | { ok: false; error: string }
+> {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, error: "Supabase が未設定です" };
+  }
+  const supabase = await createSupabaseServerClient();
+  const { data: drafts, error: selErr } = await supabase
+    .from("restaurants")
+    .select("id, name, slug")
+    .eq("is_published", false);
+  if (selErr) return { ok: false, error: selErr.message };
+  if (!drafts || drafts.length === 0) {
+    return { ok: true, published: 0, names: [] };
+  }
+  const { error: upErr } = await supabase
+    .from("restaurants")
+    .update({ is_published: true })
+    .eq("is_published", false);
+  if (upErr) return { ok: false, error: upErr.message };
+
+  revalidatePath("/admin/restaurants");
+  revalidatePath("/restaurants");
+  for (const d of drafts) {
+    if (d.slug) revalidatePath(`/restaurants/${d.slug}`);
+  }
+  return {
+    ok: true,
+    published: drafts.length,
+    names: drafts.map((d) => d.name).filter(Boolean),
+  };
+}

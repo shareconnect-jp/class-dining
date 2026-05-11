@@ -2,6 +2,7 @@ import Link from "next/link";
 import { fetchAllRestaurants } from "@/lib/data";
 import { genreSlugToName } from "@/lib/types";
 import { BulkBackfillButton } from "./bulk-backfill-button";
+import { PublishAllDraftsButton } from "./publish-all-drafts-button";
 
 export default async function AdminRestaurantsListPage() {
   const restaurants = await fetchAllRestaurants();
@@ -31,6 +32,7 @@ export default async function AdminRestaurantsListPage() {
             </Link>
           </div>
           <BulkBackfillButton />
+          <PublishAllDraftsButton />
         </div>
       </header>
 

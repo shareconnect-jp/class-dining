@@ -28,6 +28,7 @@ const SAMPLE = `鉄板KITAZUMI\thttps://tabelog.com/aichi/A2301/A230103/23068153
 
 export function BulkImportClient() {
   const [raw, setRaw] = useState("");
+  const [publish, setPublish] = useState(true);
   const [results, setResults] = useState<BulkImportRowResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -41,7 +42,7 @@ export function BulkImportClient() {
     }
     if (
       !confirm(
-        `${parsed.length} 件を順に取り込みます。1 件あたり数秒かかります。続行しますか？`,
+        `${parsed.length} 件を ${publish ? "公開状態" : "下書き"}で取り込みます。1 件あたり数秒かかります。続行しますか？`,
       )
     ) {
       return;
@@ -49,7 +50,7 @@ export function BulkImportClient() {
     startTransition(async () => {
       setError(null);
       setResults(null);
-      const res = await bulkImportRestaurants(parsed);
+      const res = await bulkImportRestaurants(parsed, { publish });
       if (!res.ok) {
         setError(res.error);
         return;
@@ -85,6 +86,19 @@ export function BulkImportClient() {
           {parsed.length} 件の URL を検出
         </p>
       </div>
+
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={publish}
+          onChange={(e) => setPublish(e.target.checked)}
+          disabled={pending}
+          className="w-4 h-4 accent-[color:var(--color-gold)]"
+        />
+        <span className="text-xs text-[color:var(--color-text-muted)]">
+          公開状態で登録する (オフの場合は下書き)
+        </span>
+      </label>
 
       <div className="flex items-center justify-between">
         <Link

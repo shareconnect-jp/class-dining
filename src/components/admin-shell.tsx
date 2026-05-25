@@ -50,6 +50,7 @@ export function AdminShell({ email, unconfigured, children }: Props) {
           <NavLink href="/admin/restaurants" mobile>店舗</NavLink>
           <NavLink href="/admin/features" mobile>特集</NavLink>
           <NavLink href="/admin/genres" mobile>ジャンル</NavLink>
+          <NavLink href="/admin/markets" mobile>マーケット</NavLink>
         </nav>
       </div>
 
@@ -72,6 +73,7 @@ export function AdminShell({ email, unconfigured, children }: Props) {
           <NavLink href="/admin/restaurants">店舗</NavLink>
           <NavLink href="/admin/features">特集</NavLink>
           <NavLink href="/admin/genres">ジャンル</NavLink>
+          <NavLink href="/admin/markets">マーケット</NavLink>
         </nav>
         <div className="pt-6 border-t border-[color:var(--color-border-soft)] space-y-2">
           {email && (
